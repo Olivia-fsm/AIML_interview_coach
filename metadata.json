@@ -1,0 +1,9 @@
+{
+  "name": "Copy of PrepAI: ML Interview Coach",
+  "description": "A comprehensive AI-powered preparation platform for PhD students and graduates targeting AIML roles. Features personalized study plans, live mock interviews, and advanced visual learning tools.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera",
+    "geolocation"
+  ]
+}
