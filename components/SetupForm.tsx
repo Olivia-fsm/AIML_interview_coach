@@ -28,20 +28,20 @@ const SetupForm: React.FC<Props> = ({ onPlanGenerated, onSkipToLibrary }) => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-8 mt-10 bg-secondary rounded-2xl shadow-xl border border-gray-700">
-      <h2 className="text-3xl font-bold mb-6 text-primary bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+    <div className="max-w-3xl mx-auto p-8 mt-10 bg-panel-bg rounded-2xl shadow-xl border border-border-col">
+      <h2 className="text-3xl font-bold mb-6 text-primary">
         AI Interview Prep Setup
       </h2>
-      <p className="mb-8 text-gray-400">
+      <p className="mb-8 text-text-muted">
         Enter your target role details and interview date. Our Gemini-powered planner will create a custom curriculum for you.
       </p>
       
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Job Description / Requirements</label>
+          <label className="block text-sm font-medium text-text-muted mb-2">Job Description / Requirements</label>
           <textarea
             required
-            className="w-full h-32 bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-primary focus:border-transparent transition"
+            className="w-full h-32 bg-card-bg border border-border-col rounded-lg p-3 text-text-main focus:ring-2 focus:ring-primary focus:border-transparent transition"
             placeholder="Paste the JD here... (e.g., Senior ML Engineer, proficiency in PyTorch, Transformers, System Design...)"
             value={jobDesc}
             onChange={(e) => setJobDesc(e.target.value)}
@@ -49,10 +49,10 @@ const SetupForm: React.FC<Props> = ({ onPlanGenerated, onSkipToLibrary }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Specific Focus Topics</label>
+          <label className="block text-sm font-medium text-text-muted mb-2">Specific Focus Topics</label>
           <input
             type="text"
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-primary focus:border-transparent transition"
+            className="w-full bg-card-bg border border-border-col rounded-lg p-3 text-text-main focus:ring-2 focus:ring-primary focus:border-transparent transition"
             placeholder="e.g., Diffusion Models, LLM Finetuning, CUDA optimization"
             value={topics}
             onChange={(e) => setTopics(e.target.value)}
@@ -60,11 +60,11 @@ const SetupForm: React.FC<Props> = ({ onPlanGenerated, onSkipToLibrary }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">Interview Date</label>
+          <label className="block text-sm font-medium text-text-muted mb-2">Interview Date</label>
           <input
             type="text"
             required
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-primary focus:border-transparent transition"
+            className="w-full bg-card-bg border border-border-col rounded-lg p-3 text-text-main focus:ring-2 focus:ring-primary focus:border-transparent transition"
             placeholder="e.g., Next Friday, October 15th, or in 2 weeks"
             value={date}
             onChange={(e) => setDate(e.target.value)}
@@ -76,7 +76,7 @@ const SetupForm: React.FC<Props> = ({ onPlanGenerated, onSkipToLibrary }) => {
             type="submit"
             disabled={loading}
             className={`w-full py-4 rounded-lg font-bold text-lg text-white transition-all transform hover:scale-[1.01] ${
-                loading ? 'bg-gray-600 cursor-not-allowed' : 'bg-gradient-to-r from-primary to-accent hover:from-blue-600 hover:to-purple-600 shadow-lg'
+                loading ? 'bg-gray-600 cursor-not-allowed' : 'bg-primary hover:opacity-90 shadow-lg'
             }`}
             >
             {loading ? (
@@ -93,15 +93,15 @@ const SetupForm: React.FC<Props> = ({ onPlanGenerated, onSkipToLibrary }) => {
             </button>
 
             <div className="relative flex items-center py-2">
-                <div className="flex-grow border-t border-gray-700"></div>
-                <span className="flex-shrink-0 mx-4 text-gray-500 text-sm">OR</span>
-                <div className="flex-grow border-t border-gray-700"></div>
+                <div className="flex-grow border-t border-border-col"></div>
+                <span className="flex-shrink-0 mx-4 text-text-muted text-sm">OR</span>
+                <div className="flex-grow border-t border-border-col"></div>
             </div>
 
             <button
                 type="button"
                 onClick={onSkipToLibrary}
-                className="w-full py-3 rounded-lg font-medium text-gray-300 border border-gray-700 hover:bg-gray-800 hover:text-white transition-all"
+                className="w-full py-3 rounded-lg font-medium text-text-muted border border-border-col hover:bg-card-bg hover:text-text-main transition-all"
             >
                 Browse Problem Library Only
             </button>

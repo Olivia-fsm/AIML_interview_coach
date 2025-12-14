@@ -23,7 +23,7 @@ const ResearchTool: React.FC = () => {
   return (
     <div className="p-6 h-full overflow-y-auto">
         <div className="max-w-3xl mx-auto">
-            <h2 className="text-2xl font-bold text-white mb-6">Market Research & Grounding</h2>
+            <h2 className="text-2xl font-bold text-text-main mb-6">Market Research & Grounding</h2>
             
             <form onSubmit={handleSearch} className="mb-8">
                 <div className="flex gap-2">
@@ -32,12 +32,12 @@ const ResearchTool: React.FC = () => {
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="e.g. Recent interview questions for Google Research Scientist 2024"
-                        className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-primary"
+                        className="flex-1 bg-card-bg border border-border-col rounded-lg px-4 py-3 text-text-main focus:ring-2 focus:ring-primary"
                     />
                     <button 
                         type="submit" 
                         disabled={loading}
-                        className="px-6 py-3 bg-primary hover:bg-blue-600 text-white font-bold rounded-lg transition-colors"
+                        className="px-6 py-3 bg-primary hover:opacity-90 text-white font-bold rounded-lg transition-colors"
                     >
                         {loading ? 'Searching...' : 'Search'}
                     </button>
@@ -46,16 +46,15 @@ const ResearchTool: React.FC = () => {
 
             {results && (
                 <div className="space-y-6 animate-fade-in">
-                    <div className="bg-secondary p-6 rounded-xl border border-gray-700">
+                    <div className="bg-panel-bg p-6 rounded-xl border border-border-col">
                         <div className="prose prose-invert max-w-none">
-                            {/* Simple markdown rendering or text display */}
-                            <p className="whitespace-pre-wrap text-gray-200 leading-relaxed">{results.text}</p>
+                            <p className="whitespace-pre-wrap text-text-main leading-relaxed">{results.text}</p>
                         </div>
                     </div>
 
                     {results.sources.length > 0 && (
                         <div>
-                            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Sources</h3>
+                            <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider mb-3">Sources</h3>
                             <div className="grid gap-3">
                                 {results.sources.map((source, i) => (
                                     <a 
@@ -63,10 +62,10 @@ const ResearchTool: React.FC = () => {
                                         href={source.uri} 
                                         target="_blank" 
                                         rel="noreferrer"
-                                        className="block p-3 bg-gray-800/50 hover:bg-gray-800 border border-gray-700 rounded-lg transition-colors"
+                                        className="block p-3 bg-card-bg hover:bg-border-col border border-border-col rounded-lg transition-colors"
                                     >
                                         <div className="font-medium text-blue-400 truncate">{source.title}</div>
-                                        <div className="text-xs text-gray-500 truncate">{source.uri}</div>
+                                        <div className="text-xs text-text-muted truncate">{source.uri}</div>
                                     </a>
                                 ))}
                             </div>

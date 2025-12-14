@@ -1,3 +1,4 @@
+
 export enum AppView {
   SETUP = 'SETUP',
   DASHBOARD = 'DASHBOARD',
@@ -9,6 +10,18 @@ export enum AppView {
   PROBLEM_SOLVER = 'PROBLEM_SOLVER'
 }
 
+export type ThemeId = 'midnight' | 'solar' | 'neon' | 'deepspace' | 'toon' | 'cosmic' | 'sea' | 'flower' | 'snow' | 'gothic';
+
+export interface ThemeColors {
+  bgApp: string;
+  bgPanel: string;
+  bgCard: string;
+  textMain: string;
+  textMuted: string;
+  colPrimary: string;
+  borderCol: string;
+}
+
 export type ProblemCategory = 
   | 'Supervised Learning'
   | 'Unsupervised Learning'
@@ -16,7 +29,9 @@ export type ProblemCategory =
   | 'NLP'
   | 'Computer Vision'
   | 'Reinforcement Learning'
-  | 'Reasoning';
+  | 'Reasoning'
+  | 'Architecture'
+  | 'System Design';
 
 export interface Problem {
   id: string;

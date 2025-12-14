@@ -10,28 +10,46 @@
         theme: {
           extend: {
             colors: {
-              primary: '#3b82f6',
-              secondary: '#1e293b',
+              primary: 'var(--col-primary)',
+              secondary: 'var(--bg-panel)',
               accent: '#8b5cf6',
+              'app-bg': 'var(--bg-app)',
+              'panel-bg': 'var(--bg-panel)',
+              'card-bg': 'var(--bg-card)',
+              'text-main': 'var(--text-main)',
+              'text-muted': 'var(--text-muted)',
+              'border-col': 'var(--border-col)',
             }
           }
         }
       }
     </script>
     <style>
+      :root {
+        /* Default (Midnight) Theme Values - Initial Load */
+        --bg-app: #0f172a;
+        --bg-panel: #1e293b;
+        --bg-card: #111827;
+        --text-main: #f8fafc;
+        --text-muted: #9ca3af;
+        --col-primary: #3b82f6;
+        --border-col: #374151;
+      }
+
       body {
-        background-color: #0f172a;
-        color: #f8fafc;
+        background-color: var(--bg-app);
+        color: var(--text-main);
+        transition: background-color 0.3s ease, color 0.3s ease;
       }
       /* Custom scrollbar for better aesthetics */
       ::-webkit-scrollbar {
         width: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #1e293b; 
+        background: var(--bg-panel); 
       }
       ::-webkit-scrollbar-thumb {
-        background: #475569; 
+        background: var(--border-col); 
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {

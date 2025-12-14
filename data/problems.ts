@@ -1,7 +1,7 @@
 import { Problem } from '../types';
 
 export const PROBLEM_LIBRARY: Problem[] = [
-  // Supervised Learning
+  // --- Supervised Learning ---
   {
     id: 'sl-1',
     title: 'Logistic Regression Gradient Descent',
@@ -90,7 +90,7 @@ def get_k_nearest_neighbors(points, query, k):
     return points[nearest_indices]`
   },
 
-  // Unsupervised Learning
+  // --- Unsupervised Learning ---
   {
     id: 'ul-1',
     title: 'K-Means Clustering Step',
@@ -190,7 +190,7 @@ def pca(X, k):
     return components`
   },
 
-  // Deep Learning
+  // --- Deep Learning ---
   {
     id: 'dl-1',
     title: 'Self-Attention Mechanism',
@@ -280,7 +280,7 @@ class ReLU:
         return grad_input`
   },
 
-  // NLP
+  // --- NLP (including Search/Ranking) ---
   {
     id: 'nlp-1',
     title: 'Positional Encoding',
@@ -382,8 +382,101 @@ def compute_tfidf(corpus):
             
     return tfidf_matrix, vocab`
   },
+  {
+    id: 'nlp-3',
+    title: 'NDCG Score (Ranking)',
+    category: 'NLP',
+    difficulty: 'Medium',
+    description: 'Implement Normalized Discounted Cumulative Gain (NDCG) at K. This is a primary metric for Ranking and Recommendation systems.',
+    examples: [
+      { input: 'relevance=[3, 2, 3, 0, 1, 2], k=3', output: 'Score between 0.0 and 1.0' }
+    ],
+    hints: ['DCG = sum(rel / log2(i + 1)).', 'IDCG = DCG of ideal (sorted) relevance.', 'NDCG = DCG / IDCG.'],
+    starterCode: `import numpy as np
 
-  // Computer Vision
+def ndcg_at_k(relevance, k):
+    """
+    relevance: list of true relevance scores (e.g., [3, 0, 1]) matching the predicted order
+    k: top k to consider
+    """
+    # Your code here
+    pass`,
+    solution: `import numpy as np
+
+def ndcg_at_k(relevance, k):
+    """
+    relevance: list of true relevance scores in the predicted order
+    k: top k to consider
+    """
+    relevance = np.asfarray(relevance)[:k]
+    if relevance.size == 0:
+        return 0.0
+        
+    # 1. Calculate DCG
+    # Formula: sum( (2^rel - 1) / log2(i + 2) ) or simple sum( rel / log2(i + 2) )
+    # Using standard log2(i+2) formulation where i starts at 0 (rank 1 is i=0 -> log2(2)=1)
+    
+    discounts = np.log2(np.arange(len(relevance)) + 2)
+    dcg = np.sum(relevance / discounts)
+    
+    # 2. Calculate IDCG (Ideal DCG)
+    # Sort relevance in descending order to get ideal ranking
+    ideal_relevance = sorted(relevance, reverse=True)
+    idcg = np.sum(ideal_relevance / discounts)
+    
+    if idcg == 0:
+        return 0.0
+        
+    return dcg / idcg`
+  },
+  {
+    id: 'nlp-4',
+    title: 'BM25 Score (Search)',
+    category: 'NLP',
+    difficulty: 'Medium',
+    description: 'Implement the BM25 scoring function for a single document given a query.',
+    examples: [
+      { input: 'doc_len=100, avg_dl=80, tf=3, qf=1, N=1000, n=50', output: 'Score float' }
+    ],
+    hints: ['BM25 = IDF * ((TF * (k1 + 1)) / (TF + k1 * (1 - b + b * DL / AVG_DL)))', 'IDF = log((N - n + 0.5) / (n + 0.5) + 1)'],
+    starterCode: `import math
+
+def bm25_score(tf, doc_len, avg_dl, N, n, k1=1.5, b=0.75):
+    """
+    tf: term frequency in doc
+    doc_len: length of document
+    avg_dl: average document length in corpus
+    N: total number of documents
+    n: number of documents containing the term
+    """
+    # Your code here
+    pass`,
+    solution: `import math
+
+def bm25_score(tf, doc_len, avg_dl, N, n, k1=1.5, b=0.75):
+    """
+    tf: term frequency in doc
+    doc_len: length of document
+    avg_dl: average document length in corpus
+    N: total number of documents
+    n: number of documents containing the term
+    """
+    # 1. Compute Inverse Document Frequency (IDF)
+    # Probabilistic IDF formula often used in Okapi BM25
+    idf = math.log((N - n + 0.5) / (n + 0.5) + 1)
+    
+    # 2. Compute Term Frequency Component
+    # Numerator
+    num = tf * (k1 + 1)
+    
+    # Denominator with length normalization
+    # 1 - b + b * (doc_len / avg_dl) penalizes long documents
+    denom = tf + k1 * (1 - b + b * (doc_len / avg_dl))
+    
+    return idf * (num / denom)`
+  },
+
+  // --- Computer Vision ---
   {
     id: 'cv-1',
     title: 'Intersection over Union (IoU)',
@@ -467,7 +560,7 @@ def convolve2d(image, kernel):
     return output`
   },
 
-  // Reinforcement Learning
+  // --- Reinforcement Learning ---
   {
     id: 'rl-1',
     title: 'Q-Learning Update',
@@ -484,7 +577,8 @@ def convolve2d(image, kernel):
     """
     # Your code here
     pass`,
-    solution: `def update_q_table(q_table, state, action, reward, next_state, alpha, gamma):
+    solution: `import numpy as np
+def update_q_table(q_table, state, action, reward, next_state, alpha, gamma):
     """
     q_table: dict or 2D array mapping (state, action) -> value
     """
@@ -505,8 +599,141 @@ def convolve2d(image, kernel):
     
     return q_table`
   },
+  {
+    id: 'rl-2',
+    title: 'PPO Clipped Objective',
+    category: 'Reinforcement Learning',
+    difficulty: 'Hard',
+    description: 'Implement the Probabilistic Policy Optimization (PPO) clipped surrogate objective function.',
+    examples: [
+      { input: 'ratios (new/old), advantages, epsilon', output: 'Scalar Loss' }
+    ],
+    hints: ['Loss = -min(ratio*adv, clip(ratio, 1-eps, 1+eps)*adv).', 'Remember we typically minimize negative objective.'],
+    starterCode: `import numpy as np
 
-  // Reasoning
+def ppo_loss(old_log_probs, new_log_probs, advantages, epsilon=0.2):
+    """
+    Calculates the PPO clipped loss.
+    All inputs are numpy arrays of shape (Batch,).
+    """
+    # Your code here
+    pass`,
+    solution: `import numpy as np
+
+def ppo_loss(old_log_probs, new_log_probs, advantages, epsilon=0.2):
+    """
+    Calculates the PPO clipped loss.
+    """
+    # 1. Calculate ratios: pi_new / pi_old
+    # Since we have log probs, ratio = exp(log_new - log_old)
+    ratios = np.exp(new_log_probs - old_log_probs)
+    
+    # 2. Unclipped part: ratio * advantage
+    surr1 = ratios * advantages
+    
+    # 3. Clipped part: clip(ratio, 1-eps, 1+eps) * advantage
+    ratios_clipped = np.clip(ratios, 1 - epsilon, 1 + epsilon)
+    surr2 = ratios_clipped * advantages
+    
+    # 4. Take minimum (element-wise)
+    # We want to maximize the objective, so we take min of the "pessimistic" bounds
+    objective = np.minimum(surr1, surr2)
+    
+    # 5. Return negative mean (for minimization)
+    return -np.mean(objective)`
+  },
+  {
+    id: 'rl-3',
+    title: 'DPO Loss (LLM Alignment)',
+    category: 'Reinforcement Learning',
+    difficulty: 'Medium',
+    description: 'Implement the Direct Preference Optimization (DPO) loss function used for aligning LLMs without a Reward Model.',
+    examples: [
+      { input: 'policy_chosen_logps, policy_rejected_logps, ref_chosen_logps, ref_rejected_logps', output: 'Scalar Loss' }
+    ],
+    hints: ['DPO uses a binary cross entropy objective on the implicit reward.', 'log(sigmoid(beta * (log_ratios_chosen - log_ratios_rejected)))'],
+    starterCode: `import numpy as np
+
+def dpo_loss(policy_chosen_logps, policy_rejected_logps, ref_chosen_logps, ref_rejected_logps, beta=0.1):
+    """
+    Computes DPO Loss. Inputs are (Batch,) arrays.
+    """
+    # Your code here
+    pass`,
+    solution: `import numpy as np
+
+def dpo_loss(policy_chosen_logps, policy_rejected_logps, ref_chosen_logps, ref_rejected_logps, beta=0.1):
+    """
+    Computes DPO Loss.
+    L_DPO = -E[ log sigmoid ( beta * (r_chosen - r_rejected) ) ]
+    where implicit reward r(x,y) = beta * (log pi(y|x) - log pi_ref(y|x))
+    """
+    # 1. Calculate log probability ratios for chosen and rejected
+    # log(pi/ref) = log(pi) - log(ref)
+    chosen_logratios = policy_chosen_logps - ref_chosen_logps
+    rejected_logratios = policy_rejected_logps - ref_rejected_logps
+    
+    # 2. Calculate logits for the preference
+    logits = chosen_logratios - rejected_logratios
+    
+    # 3. Apply Beta scale
+    scaled_logits = beta * logits
+    
+    # 4. Compute log sigmoid
+    # log(1 / (1 + exp(-x))) = -log(1 + exp(-x))
+    # Softplus is log(1 + exp(x))
+    # Stable implementation: -np.logaddexp(0, -scaled_logits)
+    log_sigmoid = -np.logaddexp(0, -scaled_logits)
+    
+    # 5. Negative log likelihood (Loss)
+    loss = -np.mean(log_sigmoid)
+    
+    return loss`
+  },
+  {
+    id: 'rl-4',
+    title: 'GRPO Advantage (DeepSeek R1)',
+    category: 'Reinforcement Learning',
+    difficulty: 'Hard',
+    description: 'Implement the Group Relative Policy Optimization (GRPO) advantage calculation. Given a group of rewards for the same input, normalize them to compute advantages.',
+    examples: [
+        { input: 'rewards = [1.0, 2.0, 3.0]', output: 'Advantages = [-1.0, 0.0, 1.0]' }
+    ],
+    hints: ['Advantage = (Reward - Mean(Group)) / Std(Group)', 'Compute statistics over the group dimension.'],
+    starterCode: `import numpy as np
+
+def compute_grpo_advantages(rewards):
+    """
+    rewards: List or array of rewards for G outputs generated from the same prompt.
+    Returns: Normalized advantages.
+    """
+    # Your code here
+    pass`,
+    solution: `import numpy as np
+
+def compute_grpo_advantages(rewards):
+    """
+    rewards: List or array of rewards for G outputs generated from the same prompt.
+    Returns: Normalized advantages.
+    """
+    rewards = np.array(rewards)
+    
+    # 1. Compute Mean and Std of the group
+    mean_reward = np.mean(rewards)
+    std_reward = np.std(rewards)
+    
+    # Avoid division by zero
+    if std_reward < 1e-8:
+        std_reward = 1.0
+        
+    # 2. Normalize
+    # A_i = (r_i - mean) / std
+    advantages = (rewards - mean_reward) / std_reward
+    
+    return advantages`
+  },
+
+  // --- Reasoning ---
   {
     id: 'rs-1',
     title: 'MCTS Selection (UCT)',
@@ -555,5 +782,271 @@ def uct_select(parent_visits, child_visits, child_wins, c=1.41):
         scores.append(exploitation + exploration)
         
     return np.argmax(scores)`
+  },
+  {
+    id: 'rs-2',
+    title: 'BLEU Score (Evaluation)',
+    category: 'Reasoning',
+    difficulty: 'Medium',
+    description: 'Implement a simplified BLEU score computation for a single sentence pair considering only unigrams (1-gram) precision.',
+    examples: [
+      { input: 'cand="the cat is on the mat", ref="the cat is on mat"', output: 'precision score' }
+    ],
+    hints: ['Count occurrences in candidate.', 'Clip count by max occurrences in reference.', 'Divide by total candidate words.'],
+    starterCode: `from collections import Counter
+
+def bleu_1_gram(candidate, reference):
+    """
+    candidate: list of tokens (words)
+    reference: list of tokens (words)
+    Returns: Unigram precision
+    """
+    # Your code here
+    pass`,
+    solution: `from collections import Counter
+
+def bleu_1_gram(candidate, reference):
+    """
+    candidate: list of tokens (words)
+    reference: list of tokens (words)
+    Returns: Unigram precision
+    """
+    cand_counts = Counter(candidate)
+    ref_counts = Counter(reference)
+    
+    correct_matches = 0
+    
+    for word, count in cand_counts.items():
+        # Clipped count: min(candidate_count, reference_count)
+        # Prevents generating "the the the" to game the metric
+        correct_matches += min(count, ref_counts[word])
+        
+    if len(candidate) == 0:
+        return 0.0
+        
+    return correct_matches / len(candidate)`
+  },
+  {
+    id: 'rs-3',
+    title: 'Beam Search (Inference)',
+    category: 'Reasoning',
+    difficulty: 'Hard',
+    description: 'Implement a beam search step. Given current sequences with scores and a function to get next token probabilities, return the top k new sequences.',
+    examples: [
+      { input: 'sequences=[([1], 0.5)], k=2', output: 'Top 2 sequences with updated scores' }
+    ],
+    hints: ['Expand every current sequence by all possible vocabulary tokens.', 'Score = old_score + log(prob)', 'Select top k from ALL candidates.'],
+    starterCode: `import numpy as np
+
+def beam_search_step(sequences, next_token_probs, k):
+    """
+    sequences: list of tuples (token_list, score)
+    next_token_probs: function taking token_list and returning (vocab_size,) log probs
+    k: beam width
+    """
+    # Your code here
+    pass`,
+    solution: `import numpy as np
+
+def beam_search_step(sequences, next_token_probs, k):
+    """
+    sequences: list of tuples (token_list, log_score)
+    next_token_probs: function taking token_list and returning (vocab_size,) log probs
+    k: beam width
+    """
+    all_candidates = []
+    
+    # 1. Expand each current sequence
+    for seq, score in sequences:
+        # Get log probabilities for the next token
+        # (Assuming next_token_probs returns array of log-probs)
+        log_probs = next_token_probs(seq)
+        
+        # Create new candidates
+        for token_id, log_prob in enumerate(log_probs):
+            new_seq = seq + [token_id]
+            new_score = score + log_prob
+            all_candidates.append((new_seq, new_score))
+            
+    # 2. Sort all candidates by score (descending)
+    ordered = sorted(all_candidates, key=lambda x: x[1], reverse=True)
+    
+    # 3. Select top k
+    return ordered[:k]`
+  },
+  
+  // --- Architecture (New) ---
+  {
+    id: 'arch-1',
+    title: 'MoE Top-K Gating',
+    category: 'Architecture',
+    difficulty: 'Medium',
+    description: 'Implement the routing logic for a Mixture of Experts layer. Given inputs and gate weights, select the top-k experts and compute routing weights.',
+    examples: [
+        { input: 'x=(Batch, Dim), W_gate=(Dim, NumExperts), k=2', output: 'Indices and Weights' }
+    ],
+    hints: ['Compute logits = x @ W_gate', 'Select top-k indices', 'Softmax ONLY the top-k values'],
+    starterCode: `import numpy as np
+
+def moe_gating(x, w_gate, k=2):
+    """
+    x: (Batch, HiddenDim)
+    w_gate: (HiddenDim, NumExperts)
+    Returns: 
+      top_k_indices: (Batch, k)
+      top_k_weights: (Batch, k) (normalized)
+    """
+    # Your code here
+    pass`,
+    solution: `import numpy as np
+
+def softmax(x):
+    e_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
+    return e_x / np.sum(e_x, axis=-1, keepdims=True)
+
+def moe_gating(x, w_gate, k=2):
+    """
+    x: (Batch, HiddenDim)
+    w_gate: (HiddenDim, NumExperts)
+    """
+    # 1. Compute routing logits
+    # (B, H) @ (H, E) -> (B, E)
+    logits = np.dot(x, w_gate)
+    
+    # 2. Find top-k experts
+    # argsort gives ascending order, so take last k and reverse
+    top_k_indices = np.argsort(logits, axis=1)[:, -k:][:, ::-1]
+    
+    # 3. Gather top-k logits
+    # Advanced indexing to gather values
+    rows = np.arange(x.shape[0])[:, np.newaxis]
+    top_k_logits = logits[rows, top_k_indices]
+    
+    # 4. Normalize (Softmax) just the top-k
+    top_k_weights = softmax(top_k_logits)
+    
+    return top_k_indices, top_k_weights`
+  },
+  {
+    id: 'arch-2',
+    title: 'Sliding Window Attention Mask',
+    category: 'Architecture',
+    difficulty: 'Medium',
+    description: 'Generate the attention mask for sliding window attention (e.g. Mistral). Each token can only attend to itself and w previous tokens.',
+    examples: [
+        { input: 'seq_len=5, window_size=2', output: '5x5 Boolean Mask' }
+    ],
+    hints: ['mask[i, j] is True if i >= j and i - j <= window_size'],
+    starterCode: `import numpy as np
+
+def sliding_window_mask(seq_len, window_size):
+    """
+    Returns (seq_len, seq_len) mask where 1 means attend, 0 means block.
+    """
+    # Your code here
+    pass`,
+    solution: `import numpy as np
+
+def sliding_window_mask(seq_len, window_size):
+    """
+    Returns (seq_len, seq_len) mask where 1 means attend, 0 means block.
+    """
+    # Create grid of indices
+    # i (rows) is query position, j (cols) is key position
+    i, j = np.indices((seq_len, seq_len))
+    
+    # Condition 1: Causal (i >= j)
+    # Condition 2: Within window (i - j <= window_size)
+    mask = (i >= j) & ((i - j) <= window_size)
+    
+    return mask.astype(int)`
+  },
+
+  // --- System Design (New) ---
+  {
+    id: 'sys-1',
+    title: 'KV Cache Inference',
+    category: 'System Design',
+    difficulty: 'Medium',
+    description: 'Implement a function to update the Key-Value cache during autoregressive decoding.',
+    examples: [
+        { input: 'new_k, new_v, past_kv_cache', output: 'updated_cache' }
+    ],
+    hints: ['Concatenate new keys/values to the existing cache along the sequence dimension.'],
+    starterCode: `import numpy as np
+
+def update_kv_cache(new_k, new_v, cache=None):
+    """
+    new_k, new_v: (Batch, 1, HeadDim) - current step features
+    cache: tuple(past_k, past_v) or None. Each is (Batch, PastLen, HeadDim)
+    Returns: updated_k, updated_v
+    """
+    # Your code here
+    pass`,
+    solution: `import numpy as np
+
+def update_kv_cache(new_k, new_v, cache=None):
+    """
+    new_k, new_v: (Batch, 1, HeadDim)
+    cache: tuple(past_k, past_v) or None
+    """
+    if cache is None:
+        return new_k, new_v
+        
+    past_k, past_v = cache
+    
+    # Concatenate along sequence dimension (axis 1)
+    updated_k = np.concatenate([past_k, new_k], axis=1)
+    updated_v = np.concatenate([past_v, new_v], axis=1)
+    
+    return updated_k, updated_v`
+  },
+  {
+    id: 'sys-2',
+    title: 'Tensor Parallel Linear Layer',
+    category: 'System Design',
+    difficulty: 'Hard',
+    description: 'Simulate the forward pass of a Tensor Parallel MLP block (ColumnParallel -> RowParallel). Assume input x is replicated.',
+    examples: [
+        { input: 'x, W_col, W_row (split parts)', output: 'Final output (synchronized)' }
+    ],
+    hints: ['ColumnParallel splits output dim. RowParallel splits input dim.', 'Need an AllReduce (sum) after RowParallel to synchronize.'],
+    starterCode: `import numpy as np
+
+def tensor_parallel_mlp(x, W_col_shard, W_row_shard):
+    """
+    Simulates a TP block on a single rank.
+    x: (Batch, Dim) - Input is identical on all ranks
+    W_col_shard: (Dim, Hidden/WorldSize) - Part of first layer
+    W_row_shard: (Hidden/WorldSize, Dim) - Part of second layer
+    
+    Note: In real TP, we need communication. Here, assume we return the partial result 
+    and a note on what communication is needed.
+    """
+    # Your code here
+    pass`,
+    solution: `import numpy as np
+
+def tensor_parallel_mlp(x, W_col_shard, W_row_shard):
+    """
+    x: (Batch, Dim)
+    """
+    # 1. Column Parallel Layer
+    # Each rank computes a slice of the hidden state
+    # X @ W_col_part -> (Batch, Hidden/P)
+    hidden_slice = np.dot(x, W_col_shard)
+    
+    # Activation (GeLU/ReLU) applied locally on the slice
+    hidden_slice = np.maximum(0, hidden_slice) # Simple ReLU
+    
+    # 2. Row Parallel Layer
+    # Each rank computes a partial sum of the final output
+    # H_slice @ W_row_part -> (Batch, Dim)
+    output_partial = np.dot(hidden_slice, W_row_shard)
+    
+    # Note: In a real system, an All-Reduce (Sum) is required here 
+    # to aggregate output_partial from all ranks to get the final Output.
+    
+    return output_partial`
   }
 ];

@@ -80,26 +80,26 @@ const MockInterview: React.FC = () => {
     <div className="flex flex-col items-center justify-center h-full p-8 space-y-8 overflow-y-auto">
       <div className="max-w-4xl w-full">
           {!report ? (
-              <div className="bg-secondary p-8 rounded-2xl border border-gray-700 shadow-2xl relative overflow-hidden text-center">
+              <div className="bg-panel-bg p-8 rounded-2xl border border-border-col shadow-2xl relative overflow-hidden text-center">
                 {/* Status Indicator */}
                 <div className="absolute top-4 right-4 flex items-center gap-2">
                     <div className={`w-3 h-3 rounded-full ${isActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-                    <span className="text-xs text-gray-400 font-mono uppercase">{status}</span>
+                    <span className="text-xs text-text-muted font-mono uppercase">{status}</span>
                 </div>
 
                 <div className="mb-8">
-                    <div className="w-24 h-24 mx-auto bg-gray-800 rounded-full flex items-center justify-center mb-4 border-2 border-gray-700">
+                    <div className="w-24 h-24 mx-auto bg-card-bg rounded-full flex items-center justify-center mb-4 border-2 border-border-col">
                         <span className="text-4xl">🎙️</span>
                     </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">AI Mock Interviewer</h2>
-                    <p className="text-gray-400 max-w-lg mx-auto">
+                    <h2 className="text-2xl font-bold text-text-main mb-2">AI Mock Interviewer</h2>
+                    <p className="text-text-muted max-w-lg mx-auto">
                         Experience a real-time technical interview with Gemini. 
                         Speak naturally about your experience, solve verbal coding problems, and get used to the pressure.
                     </p>
                 </div>
 
-                <div className="h-32 bg-gray-900 rounded-lg mb-8 relative flex items-center justify-center border border-gray-800 mx-auto max-w-xl">
-                    {!isActive && <span className="text-gray-600 text-sm">Audio visualization will appear here</span>}
+                <div className="h-32 bg-card-bg rounded-lg mb-8 relative flex items-center justify-center border border-border-col mx-auto max-w-xl">
+                    {!isActive && <span className="text-text-muted text-sm">Audio visualization will appear here</span>}
                     <canvas ref={canvasRef} width={400} height={128} className="w-full h-full rounded-lg"></canvas>
                 </div>
 
@@ -129,23 +129,23 @@ const MockInterview: React.FC = () => {
                 </div>
                 
                 {turns.length > 0 && isActive && (
-                    <div className="mt-6 text-sm text-gray-500">
+                    <div className="mt-6 text-sm text-text-muted">
                         Session active • {turns.length} interaction turns recorded
                     </div>
                 )}
               </div>
           ) : (
-              <div className="bg-secondary rounded-2xl border border-gray-700 shadow-2xl p-8 animate-fade-in text-left">
-                  <div className="flex justify-between items-start mb-8 border-b border-gray-700 pb-6">
+              <div className="bg-panel-bg rounded-2xl border border-border-col shadow-2xl p-8 animate-fade-in text-left">
+                  <div className="flex justify-between items-start mb-8 border-b border-border-col pb-6">
                       <div>
-                          <h2 className="text-3xl font-bold text-white mb-2">Interview Report</h2>
-                          <p className="text-gray-400">Detailed breakdown of your session performance</p>
+                          <h2 className="text-3xl font-bold text-text-main mb-2">Interview Report</h2>
+                          <p className="text-text-muted">Detailed breakdown of your session performance</p>
                       </div>
-                      <div className="text-center bg-gray-800 p-4 rounded-xl border border-gray-700">
+                      <div className="text-center bg-card-bg p-4 rounded-xl border border-border-col">
                           <div className={`text-4xl font-bold ${report.overallScore >= 80 ? 'text-green-400' : report.overallScore >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
                               {report.overallScore}
                           </div>
-                          <div className="text-xs text-gray-500 uppercase font-bold mt-1">Overall Score</div>
+                          <div className="text-xs text-text-muted uppercase font-bold mt-1">Overall Score</div>
                       </div>
                   </div>
 
@@ -155,7 +155,7 @@ const MockInterview: React.FC = () => {
                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                              Strengths
                           </h3>
-                          <ul className="list-disc pl-5 space-y-2 text-gray-300">
+                          <ul className="list-disc pl-5 space-y-2 text-text-muted">
                               {report.strengths.map((s, i) => <li key={i}>{s}</li>)}
                           </ul>
                       </div>
@@ -164,29 +164,29 @@ const MockInterview: React.FC = () => {
                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                              Areas for Improvement
                           </h3>
-                          <ul className="list-disc pl-5 space-y-2 text-gray-300">
+                          <ul className="list-disc pl-5 space-y-2 text-text-muted">
                               {report.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
                           </ul>
                       </div>
                   </div>
 
                   <div className="mb-8">
-                      <h3 className="text-xl font-bold text-white mb-4">Question & Answer Analysis</h3>
+                      <h3 className="text-xl font-bold text-text-main mb-4">Question & Answer Analysis</h3>
                       <div className="space-y-6">
                           {report.qna.map((item, idx) => (
-                              <div key={idx} className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-                                  <div className="font-bold text-white text-lg mb-3">Q: {item.question}</div>
+                              <div key={idx} className="bg-card-bg/50 rounded-xl p-6 border border-border-col">
+                                  <div className="font-bold text-text-main text-lg mb-3">Q: {item.question}</div>
                                   <div className="grid md:grid-cols-2 gap-6">
                                       <div>
-                                          <div className="text-xs text-gray-500 uppercase font-bold mb-1">Your Answer</div>
-                                          <p className="text-gray-300 text-sm">{item.userAnswer}</p>
+                                          <div className="text-xs text-text-muted uppercase font-bold mb-1">Your Answer</div>
+                                          <p className="text-text-muted text-sm">{item.userAnswer}</p>
                                           <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded text-blue-300 text-sm">
                                               <strong>Feedback:</strong> {item.feedback}
                                           </div>
                                       </div>
                                       <div>
-                                          <div className="text-xs text-gray-500 uppercase font-bold mb-1">Expected Answer</div>
-                                          <p className="text-gray-300 text-sm bg-black/20 p-3 rounded">{item.expectedAnswer}</p>
+                                          <div className="text-xs text-text-muted uppercase font-bold mb-1">Expected Answer</div>
+                                          <p className="text-text-muted text-sm bg-black/20 p-3 rounded">{item.expectedAnswer}</p>
                                       </div>
                                   </div>
                               </div>
@@ -197,7 +197,7 @@ const MockInterview: React.FC = () => {
                   <div className="flex justify-center">
                       <button 
                         onClick={() => setReport(null)}
-                        className="px-8 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-full font-bold transition-all"
+                        className="px-8 py-3 bg-card-bg hover:bg-border-col text-text-main rounded-full font-bold transition-all border border-border-col"
                       >
                           Start New Session
                       </button>

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { AppView, PrepPlan, Problem, Submission, CodeFeedback } from './types';
+import React, { useState, useEffect } from 'react';
+import { AppView, PrepPlan, Problem, Submission, CodeFeedback, ThemeId, ThemeColors } from './types';
 import SetupForm from './components/SetupForm';
 import PlanDashboard from './components/PlanDashboard';
 import MockInterview from './components/MockInterview';
@@ -7,14 +7,129 @@ import VisualLab from './components/VisualLab';
 import ResearchTool from './components/ResearchTool';
 import ProblemBank from './components/ProblemBank';
 import ProblemSolver from './components/ProblemSolver';
+import ThemeSelector from './components/ThemeSelector';
+import ClickEffects from './components/ClickEffects';
+import CosmicBackground from './components/CosmicBackground';
+import SeaBackground from './components/SeaBackground';
+import FlowerBackground from './components/FlowerBackground';
+import SnowBackground from './components/SnowBackground';
+import GothicBackground from './components/GothicBackground';
+
+const THEME_CONFIG: Record<ThemeId, ThemeColors> = {
+  midnight: {
+    bgApp: '#0f172a',
+    bgPanel: '#1e293b',
+    bgCard: '#111827',
+    textMain: '#f8fafc',
+    textMuted: '#9ca3af',
+    colPrimary: '#3b82f6',
+    borderCol: '#374151',
+  },
+  solar: {
+    bgApp: '#f0f9ff',
+    bgPanel: '#ffffff',
+    bgCard: '#e2e8f0',
+    textMain: '#0f172a',
+    textMuted: '#475569',
+    colPrimary: '#2563eb',
+    borderCol: '#cbd5e1',
+  },
+  neon: {
+    bgApp: '#050505',
+    bgPanel: '#121212',
+    bgCard: '#1a1a1a',
+    textMain: '#e5e5e5',
+    textMuted: '#a3a3a3',
+    colPrimary: '#00ff41',
+    borderCol: '#333333',
+  },
+  deepspace: {
+    bgApp: '#1a0b2e',
+    bgPanel: '#2e1065',
+    bgCard: '#4c1d95',
+    textMain: '#f3e8ff',
+    textMuted: '#d8b4fe',
+    colPrimary: '#d946ef',
+    borderCol: '#7e22ce',
+  },
+  toon: {
+    bgApp: '#fef3c7',
+    bgPanel: '#ffffff',
+    bgCard: '#dbeafe',
+    textMain: '#000000',
+    textMuted: '#4b5563',
+    colPrimary: '#f97316',
+    borderCol: '#000000',
+  },
+  cosmic: {
+    bgApp: 'transparent', 
+    bgPanel: 'rgba(15, 23, 42, 0.75)', 
+    bgCard: 'rgba(30, 41, 59, 0.6)',
+    textMain: '#e2e8f0',
+    textMuted: '#94a3b8',
+    colPrimary: '#38bdf8', 
+    borderCol: 'rgba(148, 163, 184, 0.2)',
+  },
+  sea: {
+    bgApp: 'transparent',
+    bgPanel: 'rgba(2, 44, 34, 0.75)',
+    bgCard: 'rgba(19, 78, 74, 0.6)',
+    textMain: '#ecfeff', // cyan-50
+    textMuted: '#99f6e4', // teal-200
+    colPrimary: '#2dd4bf', // teal-400
+    borderCol: 'rgba(45, 212, 191, 0.2)',
+  },
+  flower: {
+    bgApp: 'transparent',
+    bgPanel: 'rgba(255, 255, 255, 0.7)',
+    bgCard: 'rgba(240, 253, 244, 0.8)',
+    textMain: '#14532d', // green-900
+    textMuted: '#166534', // green-800
+    colPrimary: '#3b82f6', // Blue for the flowers
+    borderCol: 'rgba(134, 239, 172, 0.5)',
+  },
+  snow: {
+    bgApp: 'transparent',
+    bgPanel: 'rgba(30, 41, 59, 0.8)', // slate-800
+    bgCard: 'rgba(51, 65, 85, 0.6)', // slate-700
+    textMain: '#f1f5f9', // slate-100
+    textMuted: '#cbd5e1', // slate-300
+    colPrimary: '#60a5fa', // blue-400
+    borderCol: 'rgba(203, 213, 225, 0.2)',
+  },
+  gothic: {
+    bgApp: 'transparent',
+    bgPanel: 'rgba(20, 5, 5, 0.85)', // Very dark red/black
+    bgCard: 'rgba(40, 10, 15, 0.7)',
+    textMain: '#e5e5e5', // Light gray
+    textMuted: '#a8a29e', // Warm gray
+    colPrimary: '#9f1239', // Rose 800
+    borderCol: 'rgba(159, 18, 57, 0.3)', // Reddish border
+  }
+};
 
 const App: React.FC = () => {
+  const [theme, setTheme] = useState<ThemeId | null>(null);
   const [view, setView] = useState<AppView>(AppView.SETUP);
   const [plan, setPlan] = useState<PrepPlan | null>(null);
   
   // New state for problem solving
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [activeProblem, setActiveProblem] = useState<Problem | null>(null);
+
+  useEffect(() => {
+    if (theme) {
+      const colors = THEME_CONFIG[theme];
+      const root = document.documentElement;
+      root.style.setProperty('--bg-app', colors.bgApp);
+      root.style.setProperty('--bg-panel', colors.bgPanel);
+      root.style.setProperty('--bg-card', colors.bgCard);
+      root.style.setProperty('--text-main', colors.textMain);
+      root.style.setProperty('--text-muted', colors.textMuted);
+      root.style.setProperty('--col-primary', colors.colPrimary);
+      root.style.setProperty('--border-col', colors.borderCol);
+    }
+  }, [theme]);
 
   const handlePlanGenerated = (newPlan: PrepPlan) => {
     setPlan(newPlan);
@@ -37,6 +152,15 @@ const App: React.FC = () => {
     ]);
   };
 
+  if (!theme) {
+    return (
+      <>
+        <ClickEffects theme={theme} />
+        <ThemeSelector onSelectTheme={setTheme} />
+      </>
+    );
+  }
+
   const navItems = [
     // Only show Dashboard if a plan exists
     ...(plan ? [{ id: AppView.DASHBOARD, label: 'Dashboard', icon: '📊' }] : []),
@@ -47,15 +171,23 @@ const App: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen flex text-gray-100 font-sans selection:bg-primary selection:text-white">
+    <div className={`min-h-screen flex font-sans selection:bg-primary selection:text-white bg-app-bg text-text-main transition-colors duration-300 relative ${theme === 'toon' ? 'font-bold' : ''}`}>
+      {theme === 'cosmic' && <CosmicBackground />}
+      {theme === 'sea' && <SeaBackground />}
+      {theme === 'flower' && <FlowerBackground />}
+      {theme === 'snow' && <SnowBackground />}
+      {theme === 'gothic' && <GothicBackground />}
+      
+      <ClickEffects theme={theme} />
+      
       {/* Sidebar Navigation */}
       {view !== AppView.SETUP && (
-        <aside className="w-64 bg-secondary border-r border-gray-800 flex flex-col fixed h-full z-10">
-          <div className="p-6 border-b border-gray-800">
-            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+        <aside className="w-64 bg-panel-bg border-r border-border-col flex flex-col fixed h-full z-10 transition-colors duration-300 backdrop-blur-md">
+          <div className="p-6 border-b border-border-col">
+            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
               PrepAI
             </h1>
-            <p className="text-xs text-gray-500 mt-1">ML Interview Coach</p>
+            <p className="text-xs text-text-muted mt-1">ML Interview Coach</p>
           </div>
           <nav className="flex-1 p-4 space-y-2">
             {navItems.map((item) => (
@@ -64,8 +196,8 @@ const App: React.FC = () => {
                 onClick={() => setView(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   view === item.id || (view === AppView.PROBLEM_SOLVER && item.id === AppView.PROBLEM_BANK)
-                    ? 'bg-primary text-white shadow-lg shadow-blue-900/50' 
-                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                    ? 'bg-primary text-white shadow-lg' 
+                    : 'text-text-muted hover:bg-card-bg hover:text-text-main'
                 }`}
               >
                 <span>{item.icon}</span>
@@ -73,19 +205,20 @@ const App: React.FC = () => {
               </button>
             ))}
           </nav>
-          <div className="p-4 border-t border-gray-800">
-             <div className="bg-gray-800/50 rounded-lg p-3 text-xs text-gray-500">
-                <p>Powered by Gemini 2.5 & Veo</p>
+          <div className="p-4 border-t border-border-col">
+             <div className="bg-card-bg rounded-lg p-3 text-xs text-text-muted border border-border-col">
+                <p className="mb-2">Theme: <span className="uppercase font-bold">{theme}</span></p>
+                <button onClick={() => setTheme(null)} className="underline hover:text-primary">Change Theme</button>
              </div>
           </div>
         </aside>
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 flex flex-col ${view !== AppView.SETUP ? 'ml-64' : ''} h-screen overflow-hidden`}>
+      <main className={`flex-1 flex flex-col ${view !== AppView.SETUP ? 'ml-64' : ''} h-screen overflow-hidden relative z-10`}>
         {view === AppView.SETUP && (
-            <div className="flex-1 flex flex-col items-center justify-center bg-[url('https://picsum.photos/1920/1080?blur=10')] bg-cover bg-center relative">
-                <div className="absolute inset-0 bg-gray-900/90 backdrop-blur-sm"></div>
+            <div className={`flex-1 flex flex-col items-center justify-center relative ${['cosmic', 'sea', 'flower', 'snow', 'gothic'].includes(theme) ? "" : "bg-[url('https://picsum.photos/1920/1080?blur=10')] bg-cover bg-center"}`}>
+                {!['cosmic', 'sea', 'flower', 'snow', 'gothic'].includes(theme) && <div className="absolute inset-0 bg-app-bg/90 backdrop-blur-sm"></div>}
                 <div className="relative z-10 w-full">
                     <SetupForm 
                         onPlanGenerated={handlePlanGenerated} 
@@ -96,7 +229,7 @@ const App: React.FC = () => {
         )}
 
         {view !== AppView.SETUP && (
-            <div className="flex-1 bg-[#0f172a] overflow-hidden">
+            <div className="flex-1 bg-app-bg overflow-hidden transition-colors duration-300">
                 {view === AppView.DASHBOARD && plan && <PlanDashboard plan={plan} submissions={submissions} />}
                 {view === AppView.PROBLEM_BANK && <ProblemBank onSelectProblem={handleSelectProblem} submissions={submissions} />}
                 {view === AppView.PROBLEM_SOLVER && activeProblem && (
