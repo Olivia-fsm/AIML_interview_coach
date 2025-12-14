@@ -57,7 +57,7 @@ const WelcomePage: React.FC<Props> = ({ onStart }) => {
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
             </button>
             <a 
-              href="https://github.com/google-gemini/cookbook" 
+              href="https://github.com/Olivia-fsm/AIML_interview_coach/tree/main" 
               target="_blank"
               rel="noreferrer"
               className="px-8 py-4 bg-slate-800/50 border border-slate-700 text-white rounded-full font-medium text-lg hover:bg-slate-800 transition-all backdrop-blur-md flex items-center justify-center gap-2"
