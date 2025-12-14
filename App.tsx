@@ -199,7 +199,7 @@ const App: React.FC = () => {
                 <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-indigo-400">
                 Love&DeepCode
                 </h1>
-                <p className="text-[10px] text-text-muted uppercase tracking-widest">AI Boyfriend Coach</p>
+                <p className="text-[10px] text-text-muted uppercase tracking-widest">AIML Interview Companion</p>
             </div>
           </div>
           <nav className="flex-1 p-4 space-y-2">
