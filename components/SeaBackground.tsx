@@ -35,111 +35,95 @@ const SeaBackground: React.FC = () => {
 
     let time = 0;
 
-    const drawRafayel = (ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, t: number) => {
+    const drawCoralReef = (ctx: CanvasRenderingContext2D, x: number, y: number, t: number) => {
         ctx.save();
         ctx.translate(x, y);
+        const scale = 1.2;
         ctx.scale(scale, scale);
 
-        // --- TAIL ---
-        // Swaying motion
-        const tailSway = Math.sin(t * 0.05) * 10;
-        const finSway = Math.sin(t * 0.05 - 0.5) * 15;
+        // Sway calculation
+        const sway = Math.sin(t * 0.02) * 5;
 
-        // Tail Body
-        const tailGrad = ctx.createLinearGradient(0, 0, 0, 150);
-        tailGrad.addColorStop(0, '#e0f2fe'); // Light skin transition
-        tailGrad.addColorStop(0.3, '#8b5cf6'); // Purple start
-        tailGrad.addColorStop(0.7, '#3b82f6'); // Blue mid
-        tailGrad.addColorStop(1, '#06b6d4'); // Cyan end
-        
-        ctx.fillStyle = tailGrad;
+        // Base Rock formation
+        ctx.fillStyle = '#1f2937'; // Gray-800
         ctx.beginPath();
-        ctx.moveTo(-25, 0); // Waist Left
-        ctx.quadraticCurveTo(-35 + tailSway/2, 60, -10 + tailSway, 120); // Left curve
-        ctx.lineTo(10 + tailSway, 120); // Tail end width
-        ctx.quadraticCurveTo(35 + tailSway/2, 60, 25, 0); // Right curve
-        ctx.closePath();
+        ctx.moveTo(-200, 0); 
+        ctx.quadraticCurveTo(-100, -80, 0, -60);
+        ctx.quadraticCurveTo(100, -40, 200, 0);
         ctx.fill();
 
-        // Tail Fins (Glowing)
-        ctx.save();
-        ctx.translate(tailSway, 120);
-        ctx.rotate(finSway * 0.02);
-        
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = '#06b6d4';
-        ctx.fillStyle = 'rgba(6, 182, 212, 0.8)';
-        
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(-40, 30, -50, 80); // Left fin
-        ctx.quadraticCurveTo(-10, 50, 0, 40); // Center notch
-        ctx.quadraticCurveTo(10, 50, 50, 80); // Right fin tip
-        ctx.quadraticCurveTo(40, 30, 0, 0); // Right fin top
-        ctx.fill();
-        ctx.restore();
-
-        // --- TORSO ---
-        ctx.fillStyle = '#ffedd5'; // Skin tone
-        ctx.beginPath();
-        ctx.moveTo(-25, 0); // Waist
-        ctx.lineTo(25, 0);
-        ctx.lineTo(30, -60); // Shoulder Right
-        ctx.lineTo(-30, -60); // Shoulder Left
-        ctx.closePath();
-        ctx.fill();
-
-        // Arms (Simple down by side)
-        ctx.strokeStyle = '#ffedd5';
-        ctx.lineWidth = 14;
+        // Branching Coral (Staghorn) - Back Layer
+        ctx.strokeStyle = '#f87171'; // Red-400
+        ctx.lineWidth = 6;
         ctx.lineCap = 'round';
-        // Left Arm
-        ctx.beginPath(); ctx.moveTo(-30, -55); ctx.quadraticCurveTo(-45, -20, -35, 10); ctx.stroke();
-        // Right Arm
-        ctx.beginPath(); ctx.moveTo(30, -55); ctx.quadraticCurveTo(45, -20, 35, 10); ctx.stroke();
-
-        // --- HEAD ---
-        ctx.fillStyle = '#ffedd5';
         ctx.beginPath();
-        ctx.arc(0, -75, 28, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Face
-        ctx.fillStyle = '#4c1d95'; // Dark eyes
-        ctx.beginPath(); ctx.arc(-10, -75, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(10, -75, 3, 0, Math.PI * 2); ctx.fill();
-        
-        // Smile
-        ctx.strokeStyle = '#9ca3af';
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(0, -70, 5, 0.1, Math.PI - 0.1); ctx.stroke();
-
-        // --- HAIR ---
-        // Purple/Black messy hair
-        ctx.fillStyle = '#2e1065'; 
-        ctx.beginPath();
-        ctx.arc(0, -80, 32, Math.PI, 0); // Top of head
-        // Spikes/Bangs
-        ctx.lineTo(32, -70); 
-        ctx.quadraticCurveTo(35, -50, 20, -60);
-        ctx.quadraticCurveTo(0, -55, -20, -60);
-        ctx.quadraticCurveTo(-35, -50, -32, -70);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Red Accent (Ember/Coral motif)
-        ctx.fillStyle = '#f43f5e';
-        ctx.beginPath();
-        ctx.arc(20, -85, 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        // --- SCARF/ACCESSORY ---
-        ctx.strokeStyle = '#f43f5e'; // Rose/Red scarf floating
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(-15, -55);
-        ctx.quadraticCurveTo(-40 + tailSway, -80, -60 + tailSway, -40 + finSway);
+        ctx.moveTo(-50, -60);
+        ctx.quadraticCurveTo(-60, -120, -80 + sway, -160);
+        ctx.moveTo(-60, -100);
+        ctx.quadraticCurveTo(-30, -130, -20 + sway, -150);
         ctx.stroke();
+
+        // Fan Coral (Purple)
+        ctx.fillStyle = 'rgba(168, 85, 247, 0.8)'; // Purple
+        ctx.beginPath();
+        ctx.moveTo(100, -30);
+        ctx.bezierCurveTo(180, -120 + sway, 20, -120 + sway, 100, -30);
+        ctx.fill();
+        // Veins
+        ctx.strokeStyle = 'rgba(147, 51, 234, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for(let i=0; i<5; i++) {
+             ctx.moveTo(100, -30);
+             ctx.quadraticCurveTo(60 + i*20, -80, 40 + i*30 + sway, -110);
+        }
+        ctx.stroke();
+
+        // Brain Coral (Orange)
+        ctx.fillStyle = '#d97706';
+        ctx.beginPath();
+        ctx.arc(0, -30, 35, Math.PI, 0); // Half circle
+        ctx.fill();
+        // Brain texture details
+        ctx.strokeStyle = '#92400e';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-25, -30); ctx.quadraticCurveTo(-25, -55, -10, -40);
+        ctx.moveTo(0, -30); ctx.quadraticCurveTo(0, -60, 15, -40);
+        ctx.stroke();
+
+        // Seaweed / Kelp (Green) - Front Layer
+        ctx.strokeStyle = '#4ade80';
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        // Strand 1
+        ctx.beginPath();
+        ctx.moveTo(-120, -10);
+        ctx.bezierCurveTo(-120 + sway*2, -80, -150 - sway*2, -120, -130 + sway*3, -180);
+        ctx.stroke();
+        // Strand 2
+        ctx.beginPath();
+        ctx.moveTo(150, -5);
+        ctx.bezierCurveTo(150 + sway*2, -60, 180 - sway*2, -100, 160 + sway*3, -150);
+        ctx.stroke();
+
+        // Small Fish School
+        const fishOffset = Math.sin(t * 0.015) * 40;
+        ctx.fillStyle = '#facc15'; // Yellow
+        [
+            {x: -50, y: -200}, {x: -20, y: -220}, {x: -80, y: -210}
+        ].forEach(pos => {
+             ctx.beginPath();
+             // Simple fish shape
+             ctx.ellipse(pos.x + fishOffset, pos.y, 8, 4, 0, 0, Math.PI*2);
+             ctx.fill();
+             // Tail
+             ctx.beginPath();
+             ctx.moveTo(pos.x + fishOffset - 8, pos.y);
+             ctx.lineTo(pos.x + fishOffset - 12, pos.y - 4);
+             ctx.lineTo(pos.x + fishOffset - 12, pos.y + 4);
+             ctx.fill();
+        });
 
         ctx.restore();
     };
@@ -194,26 +178,24 @@ const SeaBackground: React.FC = () => {
             }
         });
 
-        // --- DRAW RAFAYEL (Character) ---
-        // Position him in bottom right, floating
-        const floatY = Math.sin(time * 0.03) * 15;
-        const charX = width * 0.85;
-        const charY = height - 150 + floatY;
+        // --- DRAW CORAL REEF ---
+        const reefX = width * 0.85;
+        const reefY = height;
         
-        // Add a subtle glow behind him
+        // Add a subtle glow behind it
         ctx.save();
-        ctx.translate(charX, charY);
-        const glow = ctx.createRadialGradient(0, -50, 50, 0, -50, 150);
-        glow.addColorStop(0, 'rgba(139, 92, 246, 0.2)'); // Violet glow
+        ctx.translate(reefX, reefY - 50);
+        const glow = ctx.createRadialGradient(0, 0, 50, 0, 0, 200);
+        glow.addColorStop(0, 'rgba(45, 212, 191, 0.15)'); // Teal glow
         glow.addColorStop(1, 'transparent');
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(0, -50, 150, 0, Math.PI * 2);
+        ctx.arc(0, 0, 200, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
-        // Draw the character
-        drawRafayel(ctx, charX, charY, 0.8, time);
+        // Draw the reef
+        drawCoralReef(ctx, reefX, reefY, time);
 
         // Draw Bubbles (Foreground)
         ctx.fillStyle = '#ffffff';

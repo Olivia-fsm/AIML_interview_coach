@@ -74,8 +74,8 @@ const ThemeSelector: React.FC<Props> = ({ onSelectTheme }) => {
       <div className="absolute inset-0 bg-gray-900/90 backdrop-blur-sm"></div>
       
       <div className="relative z-10 text-center mb-12">
-        <h1 className="text-6xl font-bold text-white mb-4 drop-shadow-lg">
-          Prep<span className="text-blue-500">AI</span>
+        <h1 className="text-6xl font-bold text-white mb-4 drop-shadow-lg flex items-center justify-center gap-3">
+           Love<span className="text-pink-500">&</span>Deep<span className="text-indigo-400">Code</span>
         </h1>
         <p className="text-gray-300 text-xl font-light tracking-wide">Choose your interface dimension.</p>
       </div>

@@ -189,11 +189,18 @@ const App: React.FC = () => {
       {/* Sidebar Navigation */}
       {view !== AppView.SETUP && (
         <aside className="w-64 bg-panel-bg border-r border-border-col flex flex-col fixed h-full z-10 transition-colors duration-300 backdrop-blur-md">
-          <div className="p-6 border-b border-border-col">
-            <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
-              PrepAI
-            </h1>
-            <p className="text-xs text-text-muted mt-1">ML Interview Coach</p>
+          <div className="p-6 border-b border-border-col flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-pink-500/20">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+            </div>
+            <div>
+                <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-indigo-400">
+                Love&DeepCode
+                </h1>
+                <p className="text-[10px] text-text-muted uppercase tracking-widest">AI Boyfriend Coach</p>
+            </div>
           </div>
           <nav className="flex-1 p-4 space-y-2">
             {navItems.map((item) => (

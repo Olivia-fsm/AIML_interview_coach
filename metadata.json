@@ -1,6 +1,6 @@
 {
-  "name": "Copy of PrepAI: ML Interview Coach",
-  "description": "A comprehensive AI-powered preparation platform for PhD students and graduates targeting AIML roles. Features personalized study plans, live mock interviews, and advanced visual learning tools.",
+  "name": "Love&DeepCode",
+  "description": "The premier AI-powered interview coach for Machine Learning researchers. Fall in love with high-dimensional problems in RL, Transformers, and System Design.",
   "requestFramePermissions": [
     "microphone",
     "camera",
