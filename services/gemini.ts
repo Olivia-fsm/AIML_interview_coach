@@ -85,12 +85,12 @@ export const generateStudyPlan = async (
     Today is ${new Date().toDateString()}.
     
     Generate a day-by-day plan leading up to the interview. 
-    If the interview is far away, group by weeks, but return a list of "PlanDay" items.
+    IMPORTANT: If the interview is more than 2 weeks away, generate a condensed plan representing key milestones or a 2-week intensive sprint. Do not generate more than 14 "PlanDay" items to ensure quick response.
     Focus on coding problems, system design, and ML concepts.
   `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview",
+    model: "gemini-2.5-flash",
     contents: prompt,
     config: {
       responseMimeType: "application/json",
@@ -120,7 +120,46 @@ export const generateStudyPlan = async (
   });
 
   if (!response.text) throw new Error("No plan generated");
-  return JSON.parse(response.text) as PrepPlan;
+  
+  try {
+    const parsed = JSON.parse(response.text);
+    
+    // Validate and sanitize structure to prevent UI crashes
+    if (!parsed.schedule || !Array.isArray(parsed.schedule)) {
+        parsed.schedule = [];
+    }
+
+    parsed.schedule.forEach((day: any) => {
+        if (!day.tasks || !Array.isArray(day.tasks)) day.tasks = [];
+        if (!day.resources || !Array.isArray(day.resources)) day.resources = [];
+        if (!day.focusArea) day.focusArea = "General Prep";
+    });
+
+    if (!parsed.roleTitle) parsed.roleTitle = "AI/ML Engineer";
+    if (!parsed.targetCompany) parsed.targetCompany = "Target Role";
+    if (!parsed.interviewDate) parsed.interviewDate = interviewDate;
+    if (!parsed.summary) parsed.summary = "Personalized study plan.";
+
+    return parsed as PrepPlan;
+  } catch (e) {
+    console.error("Failed to parse plan JSON", e);
+    // Return a fallback plan to avoid crashing
+    return {
+        roleTitle: "ML Engineer (Fallback)",
+        targetCompany: "Target",
+        interviewDate: interviewDate,
+        summary: "Could not parse AI response. Here is a generic template.",
+        schedule: [
+            {
+                day: 1,
+                date: new Date().toLocaleDateString(),
+                focusArea: "Basics",
+                tasks: ["Review Linear Algebra", "Practice Easy Python problems"],
+                resources: []
+            }
+        ]
+    };
+  }
 };
 
 // --- Research / Search Grounding ---

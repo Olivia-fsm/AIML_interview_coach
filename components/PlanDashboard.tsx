@@ -9,9 +9,9 @@ interface Props {
 
 const PlanDashboard: React.FC<Props> = ({ plan, submissions }) => {
   // Plan Chart Data
-  const scheduleData = plan.schedule.map(d => ({
+  const scheduleData = (plan.schedule || []).map(d => ({
     name: `Day ${d.day}`,
-    tasks: d.tasks.length,
+    tasks: d.tasks?.length || 0,
     focus: d.focusArea
   }));
 
@@ -51,14 +51,15 @@ const PlanDashboard: React.FC<Props> = ({ plan, submissions }) => {
                 <span className="bg-primary/20 text-primary p-1 rounded">📅</span> Daily Schedule
             </h3>
             <div className="space-y-4">
-                {plan.schedule.map((day) => (
+                {(plan.schedule || []).length > 0 ? (
+                  plan.schedule.map((day) => (
                     <div key={day.day} className="bg-panel-bg p-5 rounded-xl border border-border-col hover:border-primary transition-colors">
                         <div className="flex justify-between mb-3">
                             <span className="font-bold text-text-main text-lg">{day.date}</span>
                             <span className="px-3 py-1 bg-accent/20 text-accent rounded-full text-xs font-bold uppercase tracking-wider">{day.focusArea}</span>
                         </div>
                         <ul className="space-y-2">
-                            {day.tasks.map((task, idx) => (
+                            {(day.tasks || []).map((task, idx) => (
                                 <li key={idx} className="flex items-start gap-2 text-text-muted text-sm">
                                     <span className="mt-1.5 w-1.5 h-1.5 bg-primary rounded-full shrink-0"></span>
                                     {task}
@@ -66,7 +67,12 @@ const PlanDashboard: React.FC<Props> = ({ plan, submissions }) => {
                             ))}
                         </ul>
                     </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-text-muted p-4 border border-dashed border-border-col rounded-xl text-center">
+                    No schedule generated. Please regenerate your plan.
+                  </div>
+                )}
             </div>
         </div>
 
