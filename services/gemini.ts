@@ -17,6 +17,64 @@ const getAiClient = () => {
   return new GoogleGenAI({ apiKey });
 };
 
+// --- Helper: Domain Validation & Prompt Refinement ---
+const validateAndRefinePrompt = async (userPrompt: string, targetType: 'image' | 'video'): Promise<{isValid: boolean, refusalReason?: string, lectureNotes: string, visualPrompt: string}> => {
+  const ai = getAiClient();
+  const metaPrompt = `
+    You are an AI/ML education supervisor.
+    User Query: "${userPrompt}"
+    Target Media: ${targetType}
+    
+    Task:
+    1. VALIDATION: Determine if the query is related to AI, Machine Learning, Data Science, Math, Algorithms, System Design, or Coding.
+       - If unrelated (e.g., "cute cats", "landscape", "celebrity"), REJECT.
+       - If it is an educational visualization or metaphor for tech (e.g. "robot neural network"), ACCEPT.
+    
+    2. EXPLANATION: Write concise "Lecture Notes" (Markdown) explaining the technical concept.
+       - Define the term.
+       - Key properties/formulas if applicable.
+       - Max 150 words.
+    
+    3. VISUAL_PROMPT: Write an optimized prompt for ${targetType} generation.
+       - For diagrams: "High quality technical diagram of [concept], whiteboard style, clear labels, schematic".
+       - For abstract concepts: "Abstract visualization of [concept], data flowing, nodes connecting, high tech, 4k".
+    
+    Return strict JSON:
+    {
+      "isValid": boolean,
+      "refusalReason": string (if invalid),
+      "lectureNotes": string,
+      "visualPrompt": string
+    }
+  `;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: metaPrompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          isValid: { type: Type.BOOLEAN },
+          refusalReason: { type: Type.STRING },
+          lectureNotes: { type: Type.STRING },
+          visualPrompt: { type: Type.STRING }
+        }
+      }
+    }
+  });
+
+  if (!response.text) throw new Error("Validation failed");
+  const result = JSON.parse(response.text);
+  
+  if (!result.isValid) {
+      throw new Error(`Content Blocked: ${result.refusalReason || "Topic is unrelated to Machine Learning curriculum."}`);
+  }
+  
+  return result;
+};
+
 // --- Code Evaluation ---
 export const evaluateCodeSubmission = async (
   problemTitle: string,
@@ -196,11 +254,15 @@ export const getTutorResponse = async (history: {role: string, parts: {text: str
 
 // --- Visual Lab: Image Gen ---
 export const generateConceptImage = async (prompt: string, size: '1K' | '2K' | '4K' = '1K') => {
-  // Always ensure we have a valid key selected for image generation to avoid free tier limits
+  // 1. Validate & Explain
+  const plan = await validateAndRefinePrompt(prompt, 'image');
+
+  // 2. Auth Check
   if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) {
      await window.aistudio.openSelectKey();
   }
   
+  // 3. Generate Image using refined prompt
   const ai = getAiClient();
   const model = size === '1K' ? "gemini-2.5-flash-image" : "gemini-3-pro-image-preview";
   
@@ -210,21 +272,29 @@ export const generateConceptImage = async (prompt: string, size: '1K' | '2K' | '
 
   const response = await ai.models.generateContent({
     model,
-    contents: prompt,
+    contents: plan.visualPrompt,
     config
   });
   
+  let imageUrl = null;
   for (const part of response.candidates?.[0]?.content?.parts || []) {
     if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
+      imageUrl = `data:image/png;base64,${part.inlineData.data}`;
     }
   }
-  return null;
+  
+  return {
+      imageUrl,
+      explanation: plan.lectureNotes
+  };
 };
 
 // --- Visual Lab: Image Edit ---
 export const editConceptImage = async (base64Image: string, prompt: string) => {
-  // Always ensure we have a valid key selected for image editing
+  // For Edit, we assume the user is already modifying valid content, but we can still try to explain the change.
+  // We'll skip strict validation to allow creative edits, but we'll try to generate a note.
+  
+  // Auth Check
   if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) {
      await window.aistudio.openSelectKey();
   }
@@ -240,30 +310,43 @@ export const editConceptImage = async (base64Image: string, prompt: string) => {
     }
   });
 
+  let imageUrl = null;
   for (const part of response.candidates?.[0]?.content?.parts || []) {
     if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
+      imageUrl = `data:image/png;base64,${part.inlineData.data}`;
     }
   }
-  return null;
+  
+  return {
+      imageUrl,
+      explanation: "Image edited based on your instructions." 
+  };
 };
 
 // --- Visual Lab: Video Gen (Veo) ---
 export const generateConceptVideo = async (prompt: string, imageBase64?: string) => {
-  // Need to ensure the user has selected a paid key for Veo
+  // 1. Validate & Explain (only if creating from scratch with text prompt as driver)
+  let visualPrompt = prompt;
+  let explanation = "Video generated based on prompt.";
+  
+  if (!imageBase64) {
+      const plan = await validateAndRefinePrompt(prompt, 'video');
+      visualPrompt = plan.visualPrompt;
+      explanation = plan.lectureNotes;
+  }
+
+  // 2. Auth Check
   if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) {
      await window.aistudio.openSelectKey();
   }
 
-  // Re-init with potentially new key context if needed
   const aiWithKey = getAiClient();
-
   let operation;
   
   if (imageBase64) {
       operation = await aiWithKey.models.generateVideos({
       model: 'veo-3.1-fast-generate-preview',
-      prompt: prompt,
+      prompt: visualPrompt,
       image: {
         imageBytes: imageBase64,
         mimeType: 'image/png'
@@ -277,7 +360,7 @@ export const generateConceptVideo = async (prompt: string, imageBase64?: string)
   } else {
     operation = await aiWithKey.models.generateVideos({
       model: 'veo-3.1-fast-generate-preview',
-      prompt: prompt,
+      prompt: visualPrompt,
       config: {
         numberOfVideos: 1,
         resolution: '720p',
@@ -298,7 +381,11 @@ export const generateConceptVideo = async (prompt: string, imageBase64?: string)
   const finalUrl = `${videoUri}&key=${process.env.API_KEY}`;
   const fetchResponse = await fetch(finalUrl);
   const blob = await fetchResponse.blob();
-  return URL.createObjectURL(blob);
+  
+  return {
+      videoUrl: URL.createObjectURL(blob),
+      explanation: explanation
+  };
 };
 
 // --- Interview Report Generation ---
