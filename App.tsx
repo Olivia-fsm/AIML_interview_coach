@@ -8,6 +8,7 @@ import ResearchTool from './components/ResearchTool';
 import ProblemBank from './components/ProblemBank';
 import ProblemSolver from './components/ProblemSolver';
 import ThemeSelector from './components/ThemeSelector';
+import WelcomePage from './components/WelcomePage';
 import ClickEffects from './components/ClickEffects';
 import CosmicBackground from './components/CosmicBackground';
 import SeaBackground from './components/SeaBackground';
@@ -109,6 +110,7 @@ const THEME_CONFIG: Record<ThemeId, ThemeColors> = {
 };
 
 const App: React.FC = () => {
+  const [showWelcome, setShowWelcome] = useState(true);
   const [theme, setTheme] = useState<ThemeId | null>(null);
   const [view, setView] = useState<AppView>(AppView.SETUP);
   const [plan, setPlan] = useState<PrepPlan | null>(null);
@@ -151,6 +153,10 @@ const App: React.FC = () => {
       { problemId, code, feedback, timestamp: Date.now() }
     ]);
   };
+
+  if (showWelcome) {
+    return <WelcomePage onStart={() => setShowWelcome(false)} />;
+  }
 
   if (!theme) {
     return (
