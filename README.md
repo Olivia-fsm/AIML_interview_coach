@@ -29,6 +29,9 @@ Love&DeepCode is a comprehensive, AI-powered platform designed to help PhD stude
 ## ChangeLog
 
 ### Recent Updates
+- **New Feature: Playground**:
+  - Added "Neural Navigate", a casual game where users guide a learning agent through neural network layers to relax after studying. Features neon aesthetics, physics-based movement, and high score tracking.
+
 - **New Feature: Job Hunt Intelligence**:
   - Implemented a real-time job search aggregator.
   - Users can search for roles (e.g. "Research Intern") and locations.

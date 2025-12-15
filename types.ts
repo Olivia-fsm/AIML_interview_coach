@@ -10,7 +10,8 @@ export enum AppView {
   PROBLEM_BANK = 'PROBLEM_BANK',
   PROBLEM_SOLVER = 'PROBLEM_SOLVER',
   JOB_HUNT = 'JOB_HUNT',
-  WISHES = 'WISHES'
+  WISHES = 'WISHES',
+  PLAYGROUND = 'PLAYGROUND'
 }
 
 export type ThemeId = 'midnight' | 'solar' | 'neon' | 'deepspace' | 'toon' | 'cosmic' | 'sea' | 'flower' | 'snow' | 'gothic';
