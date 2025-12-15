@@ -9,9 +9,11 @@ interface Props {
   problem: Problem;
   onBack: () => void;
   onSubmitSuccess: (problemId: string, code: string, feedback: CodeFeedback) => void;
+  isLiked: boolean;
+  onToggleLike: () => void;
 }
 
-const ProblemSolver: React.FC<Props> = ({ problem, onBack, onSubmitSuccess }) => {
+const ProblemSolver: React.FC<Props> = ({ problem, onBack, onSubmitSuccess, isLiked, onToggleLike }) => {
   const [code, setCode] = useState(problem.starterCode);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<CodeFeedback | null>(null);
@@ -153,6 +155,15 @@ const ProblemSolver: React.FC<Props> = ({ problem, onBack, onSubmitSuccess }) =>
              <h2 className="text-xl font-bold text-text-main">{problem.title}</h2>
              <span className="text-xs text-text-muted border border-border-col px-2 py-1 rounded">{problem.category}</span>
          </div>
+         <button 
+            onClick={onToggleLike}
+            className={`p-2 rounded-full hover:bg-card-bg transition-colors ${isLiked ? 'text-red-500' : 'text-text-muted'}`}
+            title={isLiked ? "Unlike Problem" : "Like Problem"}
+         >
+            <svg className="w-6 h-6" fill={isLiked ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+         </button>
       </div>
 
       <div className="flex-1 flex overflow-hidden">

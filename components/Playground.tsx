@@ -1,9 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 
 // --- Simple Audio Engine ---
-// We use a class-like structure (or just helper functions) to manage Web Audio API
-// to avoid React render cycle issues with audio scheduling.
-
 class SoundEngine {
   ctx: AudioContext | null = null;
   masterGain: GainNode | null = null;
@@ -170,7 +167,11 @@ class SoundEngine {
   }
 }
 
-const Playground: React.FC = () => {
+interface Props {
+    onSaveScore: (game: string, score: number) => void;
+}
+
+const Playground: React.FC<Props> = ({ onSaveScore }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const soundRef = useRef<SoundEngine | null>(null);
@@ -204,10 +205,10 @@ const Playground: React.FC = () => {
     // Init sound engine once
     soundRef.current = new SoundEngine();
     
+    // NOTE: This now relies on user profile state from App, but we also check local just in case
     const saved = localStorage.getItem('ldc_high_score');
     if (saved) setHighScore(parseInt(saved));
     
-    // Check if user has played before to determine if we show the full tutorial
     const hasPlayed = localStorage.getItem('ldc_has_played');
     if (hasPlayed) setIsFirstVisit(false);
 
@@ -385,9 +386,12 @@ const Playground: React.FC = () => {
       setGameState('GAMEOVER');
       soundRef.current?.stopMusic();
       
-      if (stateRef.current.score > highScore) {
-          setHighScore(stateRef.current.score);
-          localStorage.setItem('ldc_high_score', stateRef.current.score.toString());
+      // Save Score via Callback
+      const finalScore = stateRef.current.score;
+      if (finalScore > highScore) {
+          setHighScore(finalScore);
+          localStorage.setItem('ldc_high_score', finalScore.toString());
+          onSaveScore('neural_navigate', finalScore);
       }
   };
 

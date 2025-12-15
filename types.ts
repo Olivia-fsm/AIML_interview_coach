@@ -1,6 +1,7 @@
 
 
 export enum AppView {
+  AUTH = 'AUTH',
   SETUP = 'SETUP',
   DASHBOARD = 'DASHBOARD',
   MOCK_INTERVIEW = 'MOCK_INTERVIEW',
@@ -11,10 +12,31 @@ export enum AppView {
   PROBLEM_SOLVER = 'PROBLEM_SOLVER',
   JOB_HUNT = 'JOB_HUNT',
   WISHES = 'WISHES',
-  PLAYGROUND = 'PLAYGROUND'
+  PLAYGROUND = 'PLAYGROUND',
+  PROFILE = 'PROFILE'
 }
 
 export type ThemeId = 'midnight' | 'solar' | 'neon' | 'deepspace' | 'toon' | 'cosmic' | 'sea' | 'flower' | 'snow' | 'gothic';
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  password?: string; // In a real app, never store plain text!
+  avatar?: string;
+  joinedAt: number;
+}
+
+export interface UserProfile {
+  userId: string;
+  level: number;
+  xp: number;
+  likedProblemIds: string[];
+  visualHistory: VisualHistoryItem[];
+  gameHighScores: Record<string, number>;
+  currentPlan?: PrepPlan;
+  submissions: Submission[];
+}
 
 export interface ThemeColors {
   bgApp: string;

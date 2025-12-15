@@ -9,26 +9,33 @@ Love&DeepCode is a comprehensive, AI-powered platform designed to help PhD stude
 - **Frontend Framework**: React 19
 - **Styling**: Tailwind CSS
 - **AI Integration**: Google GenAI SDK (`@google/genai`)
+- **Persistence**: LocalStorage Database Simulation
 - **Visualization**: Recharts (Charts), HTML5 Canvas (Animations)
 - **Build Tool**: Vite / ES Modules
 
 ## Key Features
-1. **Personalized Curriculum**: Generates day-by-day study plans based on job descriptions (Gemini 3 Pro).
-2. **Practice Bank**: A curated library of advanced ML coding problems (Transformers, RL, System Design).
-3. **Mock Interview**: Real-time voice interaction with an AI interviewer using the **Gemini Live API**.
-4. **Visual Lab**: Generates architecture diagrams and explainer videos using **Imagen** and **Veo**.
-5. **Research Tool**: Grounded search for latest research papers and interview trends using Google Search Tool.
-6. **Theming Engine**: 10+ distinct themes with interactive canvas backgrounds (Cosmic, Gothic, Sea, etc.).
+1. **User Authentication & Profiles**: Secure login system with gamified profiles. Tracks XP, Level, Liked Problems, and Visual Gallery history.
+2. **Personalized Curriculum**: Generates day-by-day study plans based on job descriptions (Gemini 3 Pro).
+3. **Practice Bank**: A curated library of advanced ML coding problems (Transformers, RL, System Design).
+4. **Mock Interview**: Real-time voice interaction with an AI interviewer using the **Gemini Live API**.
+5. **Visual Lab**: Generates architecture diagrams and explainer videos using **Imagen** and **Veo**.
+6. **Research Tool**: Grounded search for latest research papers and interview trends using Google Search Tool.
+7. **Theming Engine**: 10+ distinct themes with interactive canvas backgrounds (Cosmic, Gothic, Sea, etc.).
 
 ## Directory Structure
 - `components/`: React UI components.
-- `services/`: API integration logic.
+- `services/`: API integration & Local Database logic.
 - `data/`: Static assets (problem library).
 - `types.ts`: TypeScript definitions.
 
 ## ChangeLog
 
 ### Recent Updates
+- **New Feature: User Profiles & Database Simulation**:
+  - Added a complete Auth system (Login/Signup).
+  - Implemented `userService` to simulate a database using LocalStorage.
+  - Users now have profiles tracking their **XP**, **Level**, **Game High Scores**, **Saved Visuals**, and **Liked Problems**.
+  
 - **New Feature: Playground**:
   - Added "Neural Navigate", a casual game where users guide a learning agent through neural network layers to relax after studying. Features neon aesthetics, physics-based movement, and high score tracking.
 

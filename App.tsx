@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppView, PrepPlan, Problem, Submission, CodeFeedback, ThemeId, ThemeColors, VisualHistoryItem } from './types';
+import { AppView, PrepPlan, Problem, Submission, CodeFeedback, ThemeId, ThemeColors, VisualHistoryItem, User, UserProfile } from './types';
 import SetupForm from './components/SetupForm';
 import PlanDashboard from './components/PlanDashboard';
 import MockInterview from './components/MockInterview';
@@ -12,12 +12,15 @@ import Wishes from './components/Wishes';
 import Playground from './components/Playground';
 import ThemeSelector from './components/ThemeSelector';
 import WelcomePage from './components/WelcomePage';
+import AuthPage from './components/AuthPage';
+import ProfilePage from './components/ProfilePage';
 import ClickEffects from './components/ClickEffects';
 import CosmicBackground from './components/CosmicBackground';
 import SeaBackground from './components/SeaBackground';
 import FlowerBackground from './components/FlowerBackground';
 import SnowBackground from './components/SnowBackground';
 import GothicBackground from './components/GothicBackground';
+import { restoreSession, saveSubmission, saveUserPlan, saveVisualGeneration, toggleLikeProblem, logoutUser, saveGameScore } from './services/userService';
 
 const THEME_CONFIG: Record<ThemeId, ThemeColors> = {
   midnight: {
@@ -115,16 +118,26 @@ const THEME_CONFIG: Record<ThemeId, ThemeColors> = {
 const App: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState(true);
   const [theme, setTheme] = useState<ThemeId | null>(null);
-  const [view, setView] = useState<AppView>(AppView.SETUP);
-  const [plan, setPlan] = useState<PrepPlan | null>(null);
-  
-  // New state for problem solving
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [view, setView] = useState<AppView>(AppView.AUTH);
   const [activeProblem, setActiveProblem] = useState<Problem | null>(null);
+  
+  // Auth State
+  const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
-  // New state for Visual Lab History
-  const [visualHistory, setVisualHistory] = useState<VisualHistoryItem[]>([]);
+  // Initialize Session
+  useEffect(() => {
+      const session = restoreSession();
+      if (session) {
+          setUser(session.user);
+          setUserProfile(session.profile);
+          setView(session.profile.currentPlan ? AppView.DASHBOARD : AppView.SETUP);
+          setShowWelcome(false);
+          setTheme('midnight'); // Default theme if restored
+      }
+  }, []);
 
+  // Update CSS Variables
   useEffect(() => {
     if (theme) {
       const colors = THEME_CONFIG[theme];
@@ -139,8 +152,26 @@ const App: React.FC = () => {
     }
   }, [theme]);
 
+  // Handlers
+  const handleLogin = (u: User, p: UserProfile) => {
+      setUser(u);
+      setUserProfile(p);
+      setView(p.currentPlan ? AppView.DASHBOARD : AppView.SETUP);
+  };
+
+  const handleLogout = () => {
+      logoutUser();
+      setUser(null);
+      setUserProfile(null);
+      setView(AppView.AUTH);
+      setShowWelcome(true);
+  };
+
   const handlePlanGenerated = (newPlan: PrepPlan) => {
-    setPlan(newPlan);
+    if (user) {
+        const updated = saveUserPlan(user.id, newPlan);
+        setUserProfile(updated);
+    }
     setView(AppView.DASHBOARD);
   };
 
@@ -154,14 +185,32 @@ const App: React.FC = () => {
   };
 
   const handleSubmitSuccess = (problemId: string, code: string, feedback: CodeFeedback) => {
-    setSubmissions(prev => [
-      ...prev, 
-      { problemId, code, feedback, timestamp: Date.now() }
-    ]);
+    if (user) {
+        const submission: Submission = { problemId, code, feedback, timestamp: Date.now() };
+        const updated = saveSubmission(user.id, submission);
+        setUserProfile(updated);
+    }
   };
 
   const handleAddToHistory = (item: VisualHistoryItem) => {
-    setVisualHistory(prev => [item, ...prev]);
+      if (user) {
+          const updated = saveVisualGeneration(user.id, item);
+          setUserProfile(updated);
+      }
+  };
+  
+  const handleLikeProblem = (problemId: string) => {
+      if (user) {
+          const updated = toggleLikeProblem(user.id, problemId);
+          setUserProfile(updated);
+      }
+  };
+
+  const handleSaveScore = (game: string, score: number) => {
+      if (user) {
+          const updated = saveGameScore(user.id, game, score);
+          setUserProfile(updated);
+      }
   };
 
   if (showWelcome) {
@@ -177,15 +226,25 @@ const App: React.FC = () => {
     );
   }
 
+  // Not Authenticated -> Show Auth Page
+  if (!user || !userProfile) {
+      return (
+        <div className="min-h-screen bg-app-bg text-text-main">
+            <AuthPage onLogin={handleLogin} />
+        </div>
+      );
+  }
+
   const navItems = [
     // Only show Dashboard if a plan exists
-    ...(plan ? [{ id: AppView.DASHBOARD, label: 'Dashboard', icon: '📊' }] : []),
+    ...(userProfile.currentPlan ? [{ id: AppView.DASHBOARD, label: 'Dashboard', icon: '📊' }] : []),
     { id: AppView.PROBLEM_BANK, label: 'Practice Bank', icon: '💻' },
     { id: AppView.MOCK_INTERVIEW, label: 'Mock Interview', icon: '🎙️' },
     { id: AppView.VISUAL_LAB, label: 'Visual Lab', icon: '🎨' },
     { id: AppView.RESEARCH, label: 'Research', icon: '🔍' },
     { id: AppView.JOB_HUNT, label: 'Job Hunt', icon: '💼' },
     { id: AppView.PLAYGROUND, label: 'Playground', icon: '🎮' },
+    { id: AppView.PROFILE, label: 'Profile', icon: '👤' },
     { id: AppView.WISHES, label: 'Wishes', icon: '✨' },
   ];
 
@@ -212,7 +271,7 @@ const App: React.FC = () => {
                 <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-indigo-400">
                 Love&DeepCode
                 </h1>
-                <p className="text-[10px] text-text-muted uppercase tracking-widest">AIML Interview Companion</p>
+                <p className="text-[10px] text-text-muted uppercase tracking-widest">Logged in as {user.name.split(' ')[0]}</p>
             </div>
           </div>
           <nav className="flex-1 p-4 space-y-2">
@@ -233,8 +292,11 @@ const App: React.FC = () => {
           </nav>
           <div className="p-4 border-t border-border-col">
              <div className="bg-card-bg rounded-lg p-3 text-xs text-text-muted border border-border-col">
-                <p className="mb-2">Theme: <span className="uppercase font-bold">{theme}</span></p>
-                <button onClick={() => setTheme(null)} className="underline hover:text-primary">Change Theme</button>
+                <p className="mb-2 flex justify-between">Theme: <span className="uppercase font-bold">{theme}</span></p>
+                <div className="flex justify-between mt-2">
+                    <button onClick={() => setTheme(null)} className="underline hover:text-primary">Change Theme</button>
+                    <button onClick={handleLogout} className="text-red-400 hover:text-red-300">Logout</button>
+                </div>
              </div>
           </div>
         </aside>
@@ -256,25 +318,32 @@ const App: React.FC = () => {
 
         {view !== AppView.SETUP && (
             <div className="flex-1 bg-app-bg overflow-hidden transition-colors duration-300">
-                {view === AppView.DASHBOARD && plan && <PlanDashboard plan={plan} submissions={submissions} />}
-                {view === AppView.PROBLEM_BANK && <ProblemBank onSelectProblem={handleSelectProblem} submissions={submissions} />}
+                {view === AppView.DASHBOARD && userProfile.currentPlan && <PlanDashboard plan={userProfile.currentPlan} submissions={userProfile.submissions} />}
+                {view === AppView.PROBLEM_BANK && <ProblemBank onSelectProblem={handleSelectProblem} submissions={userProfile.submissions} />}
                 {view === AppView.PROBLEM_SOLVER && activeProblem && (
                     <ProblemSolver 
                         problem={activeProblem} 
                         onBack={() => setView(AppView.PROBLEM_BANK)}
                         onSubmitSuccess={handleSubmitSuccess}
+                        isLiked={userProfile.likedProblemIds.includes(activeProblem.id)}
+                        onToggleLike={() => handleLikeProblem(activeProblem.id)}
                     />
                 )}
                 {view === AppView.MOCK_INTERVIEW && <MockInterview />}
                 {view === AppView.VISUAL_LAB && (
                     <VisualLab 
-                      history={visualHistory} 
+                      history={userProfile.visualHistory} 
                       onAddToHistory={handleAddToHistory} 
                     />
                 )}
                 {view === AppView.RESEARCH && <ResearchTool />}
                 {view === AppView.JOB_HUNT && <JobBoard />}
-                {view === AppView.PLAYGROUND && <Playground />}
+                {view === AppView.PLAYGROUND && (
+                    <Playground 
+                        onSaveScore={handleSaveScore} 
+                    />
+                )}
+                {view === AppView.PROFILE && <ProfilePage user={user} profile={userProfile} />}
                 {view === AppView.WISHES && <Wishes />}
             </div>
         )}
