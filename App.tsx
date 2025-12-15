@@ -133,7 +133,9 @@ const App: React.FC = () => {
               setUser(session.user);
               setUserProfile(session.profile);
               setView(session.profile.currentPlan ? AppView.DASHBOARD : AppView.SETUP);
-              setShowWelcome(false);
+              // FIXED: Do not auto-hide welcome page to prevent "jumping" effect.
+              // User must manually click "Start" to enter, even if session is restored.
+              // setShowWelcome(false); 
               setTheme('midnight'); // Default theme if restored
           }
       };
@@ -298,7 +300,7 @@ const App: React.FC = () => {
                 <p className="mb-2 flex justify-between">Theme: <span className="uppercase font-bold">{theme}</span></p>
                 <div className="flex justify-between mt-2">
                     <button onClick={() => setTheme(null)} className="underline hover:text-primary">Change Theme</button>
-                    <button onClick={handleLogout} className="text-red-400 hover:text-red-300">Logout</button>
+                    <button onClick={handleLogout} className="text-red-400 hover:text-red300">Logout</button>
                 </div>
              </div>
           </div>
