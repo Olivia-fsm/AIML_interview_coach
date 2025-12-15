@@ -9,6 +9,7 @@ export enum AppView {
   RESEARCH = 'RESEARCH',
   PROBLEM_BANK = 'PROBLEM_BANK',
   PROBLEM_SOLVER = 'PROBLEM_SOLVER',
+  JOB_HUNT = 'JOB_HUNT',
   WISHES = 'WISHES'
 }
 
@@ -124,4 +125,13 @@ export interface VisualHistoryItem {
   explanation: string;
   sourceImage?: string;
   timestamp: number;
+}
+
+export interface JobPosting {
+  title: string;
+  company: string;
+  location: string;
+  summary: string;
+  platform: string;
+  url: string;
 }

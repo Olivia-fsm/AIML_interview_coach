@@ -6,7 +6,7 @@ import {
   Blob, 
   GenerateContentResponse 
 } from "@google/genai";
-import { PrepPlan, CodeFeedback, InterviewTurn, InterviewReport, TestCaseResult } from "../types";
+import { PrepPlan, CodeFeedback, InterviewTurn, InterviewReport, TestCaseResult, JobPosting } from "../types";
 
 // Helper to get API client
 const getAiClient = () => {
@@ -404,6 +404,63 @@ export const researchTopic = async (query: string) => {
     text: response.text,
     sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web).filter(Boolean) || []
   };
+};
+
+// --- Job Search (New) ---
+export const findJobPostings = async (role: string, location: string): Promise<JobPosting[]> => {
+  const ai = getAiClient();
+  
+  const prompt = `
+    Find 6 recent job openings for "${role}" ${location ? `in ${location}` : ''}.
+    Search specifically on LinkedIn, X (Twitter), Y Combinator, and company career pages.
+    
+    Return the results strictly as a JSON array inside a code block.
+    Each item must have:
+    - title: string
+    - company: string
+    - location: string
+    - summary: string (1 sentence description)
+    - platform: string (e.g. "LinkedIn", "Twitter", "Careers Page")
+    - url: string (The URL found in the search results. If no specific URL is found, leave empty)
+  `;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+    config: {
+      tools: [{ googleSearch: {} }]
+      // Note: We cannot use responseMimeType="application/json" with Search tools, 
+      // so we ask for a JSON block in the prompt.
+    }
+  });
+
+  const text = response.text || "";
+  
+  // Extract JSON
+  const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/) || text.match(/\[\s*\{[\s\S]*\}\s*\]/);
+  
+  if (!jsonMatch) {
+      console.warn("Could not parse job search JSON", text);
+      return [];
+  }
+  
+  try {
+      const raw = jsonMatch[1] || jsonMatch[0];
+      const jobs = JSON.parse(raw);
+      
+      // Post-process: If URL is empty, we can rely on the UI to generate a search link
+      return jobs.map((j: any) => ({
+          title: j.title || "Unknown Role",
+          company: j.company || "Unknown Company",
+          location: j.location || location || "Remote",
+          summary: j.summary || "No description available.",
+          platform: j.platform || "Web",
+          url: j.url || "" 
+      }));
+  } catch (e) {
+      console.error("Job JSON parse error", e);
+      return [];
+  }
 };
 
 // --- Tutor Chat ---

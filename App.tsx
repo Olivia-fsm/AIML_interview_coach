@@ -7,6 +7,7 @@ import VisualLab from './components/VisualLab';
 import ResearchTool from './components/ResearchTool';
 import ProblemBank from './components/ProblemBank';
 import ProblemSolver from './components/ProblemSolver';
+import JobBoard from './components/JobBoard';
 import Wishes from './components/Wishes';
 import ThemeSelector from './components/ThemeSelector';
 import WelcomePage from './components/WelcomePage';
@@ -182,6 +183,7 @@ const App: React.FC = () => {
     { id: AppView.MOCK_INTERVIEW, label: 'Mock Interview', icon: '🎙️' },
     { id: AppView.VISUAL_LAB, label: 'Visual Lab', icon: '🎨' },
     { id: AppView.RESEARCH, label: 'Research', icon: '🔍' },
+    { id: AppView.JOB_HUNT, label: 'Job Hunt', icon: '💼' },
     { id: AppView.WISHES, label: 'Wishes', icon: '✨' },
   ];
 
@@ -269,6 +271,7 @@ const App: React.FC = () => {
                     />
                 )}
                 {view === AppView.RESEARCH && <ResearchTool />}
+                {view === AppView.JOB_HUNT && <JobBoard />}
                 {view === AppView.WISHES && <Wishes />}
             </div>
         )}

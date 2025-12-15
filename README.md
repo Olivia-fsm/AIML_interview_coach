@@ -29,6 +29,12 @@ Love&DeepCode is a comprehensive, AI-powered platform designed to help PhD stude
 ## ChangeLog
 
 ### Recent Updates
+- **New Feature: Job Hunt Intelligence**:
+  - Implemented a real-time job search aggregator.
+  - Users can search for roles (e.g. "Research Intern") and locations.
+  - Utilizes Gemini's Google Search grounding to find postings on LinkedIn, X (Twitter), and Y Combinator.
+  - Returns structured cards with AI-generated summaries and direct links.
+
 - **New Feature: Wishes**:
   - Added a dedicated feedback page where users can submit requests for specific algorithms, features, or question types directly via email.
   
