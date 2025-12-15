@@ -9,7 +9,7 @@ export const PROBLEM_LIBRARY: Problem[] = [
     difficulty: 'Medium',
     description: 'Implement the gradient update step for Logistic Regression using binary cross-entropy loss. Assume X is (N, D) and y is (N, 1).',
     examples: [
-      { input: 'X=[[1,2],[3,4]], y=[[0],[1]], weights=[0.1, 0.1], lr=0.01', output: 'weights=[0.095, 0.092] (Approx)' }
+      { input: 'X=[[1,2],[3,4]], y=[[0],[1]], weights=[0.1, 0.1], lr=0.01', output: 'weights=[0.102, 0.101] (Approx)' }
     ],
     hiddenTestCase: { input: 'X=[[0,0],[0,0]], y=[[1],[0]], weights=[0.0, 0.0], lr=0.1', output: 'Updated weights handling zeros correctly' },
     hints: ['Remember the sigmoid function.', 'Gradient is X.T * (y_pred - y)'],
@@ -30,12 +30,10 @@ def sigmoid(z):
     return 1 / (1 + np.exp(-z))
 
 def update_weights(X, y, weights, lr):
-    """
-    X: (N, D) numpy array
-    y: (N, 1) numpy array
-    weights: (D, 1) numpy array
-    lr: learning rate scalar
-    """
+    X = np.array(X)
+    y = np.array(y)
+    weights = np.array(weights)
+    
     N = X.shape[0]
     
     # Forward pass
@@ -80,6 +78,9 @@ def get_k_nearest_neighbors(points, query, k):
     query: (D,) numpy array
     k: int
     """
+    points = np.array(points)
+    query = np.array(query)
+    
     # Calculate Euclidean distances
     # Using broadcasting: (N, D) - (D,) -> (N, D)
     diff = points - query
@@ -100,9 +101,9 @@ def get_k_nearest_neighbors(points, query, k):
     difficulty: 'Medium',
     description: 'Implement the assignment and update steps of K-Means. Given centroids and points, assign points to clusters and recompute centroids.',
     examples: [
-      { input: 'points=[[0,0], [2,2], [0,2], [2,0]], centroids=[[0,0], [2,2]]', output: 'new_centroids=[[0,1], [2,1]], labels=[0, 1, 0, 1]' }
+      { input: 'points=[[0,0], [2,2], [0,1], [2,1]], centroids=[[0,0], [2,2]]', output: 'new_centroids=[[0, 0.5], [2, 1.5]], labels=[0, 1, 0, 1]' }
     ],
-    hiddenTestCase: { input: 'points=[[1,1],[1,1]], centroids=[[0,0],[10,10]]', output: 'All points assigned to first centroid (if closer), check empty cluster handling' },
+    hiddenTestCase: { input: 'points=[[1,1],[1,1]], centroids=[[0,0],[10,10]]', output: 'new_centroids=[[1, 1], [10, 10]], labels=[0, 0]' },
     hints: ['Broadcasting can help compute pairwise distances efficiently.', 'Use mean along axis 0 for updates.'],
     starterCode: `import numpy as np
 
@@ -120,6 +121,9 @@ def kmeans_step(points, centroids):
     points: (N, D)
     centroids: (K, D)
     """
+    points = np.array(points)
+    centroids = np.array(centroids)
+    
     # 1. Assignment Step
     # Calculate distances from every point to every centroid
     # shape: (N, 1, D) - (1, K, D) -> (N, K, D)
@@ -171,6 +175,8 @@ def pca(X, k):
     X: (N, D) data matrix
     k: number of components
     """
+    X = np.array(X)
+
     # 1. Center the data
     mean = np.mean(X, axis=0)
     X_centered = X - mean
@@ -202,7 +208,7 @@ def pca(X, k):
     difficulty: 'Hard',
     description: 'Implement the scaled dot-product attention mechanism: softmax(QK^T / sqrt(d_k))V.',
     examples: [
-      { input: 'Q=np.eye(2)[None,:], K=np.eye(2)[None,:], V=np.ones((1,2,2))', output: '[[[0.5, 0.5], [0.5, 0.5]]]' }
+      { input: 'Q=np.eye(2)[None,:], K=np.eye(2)[None,:], V=np.ones((1,2,2))', output: '[[[1., 1.], [1., 1.]]]' }
     ],
     hiddenTestCase: { input: 'Q=Zeros, K=Zeros, V=Ones', output: 'Should return Average of V due to uniform softmax' },
     hints: ['Watch out for matrix multiplication dimensions.', 'Apply mask if necessary (optional for basic version).'],
@@ -224,6 +230,11 @@ def scaled_dot_product_attention(Q, K, V, mask=None):
     """
     Q, K, V: (Batch, Seq_Len, D_k)
     """
+    Q = np.array(Q)
+    K = np.array(K)
+    V = np.array(V)
+    if mask is not None: mask = np.array(mask)
+
     d_k = Q.shape[-1]
     
     # 1. Matmul Q and K^T
@@ -271,14 +282,14 @@ class ReLU:
 
 class ReLU:
     def forward(self, x):
-        self.input = x
-        return np.maximum(0, x)
+        self.input = np.array(x)
+        return np.maximum(0, self.input)
     
     def backward(self, grad_output):
         """
         grad_output: Gradient flowing from the next layer
         """
-        grad_input = grad_output.copy()
+        grad_input = np.array(grad_output).copy()
         
         # Gradient is 0 where input <= 0
         grad_input[self.input <= 0] = 0
@@ -553,6 +564,9 @@ def convolve2d(image, kernel):
     """
     Naive implementation of 2D convolution with valid padding.
     """
+    image = np.array(image)
+    kernel = np.array(kernel)
+    
     H, W = image.shape
     k_h, k_w = kernel.shape
     
@@ -580,7 +594,7 @@ def convolve2d(image, kernel):
     difficulty: 'Easy',
     description: 'Write the function to update a Q-table entry given state s, action a, reward r, next state s_next, learning rate alpha, and discount gamma.',
     examples: [
-      { input: 'q_table={0:{1:0.5}}, state=0, action=1, reward=1, next_state=2, alpha=0.1, gamma=0.9', output: 'updated_q=0.595 (approx)' }
+      { input: 'q_table={0:{1:0.5}}, state=0, action=1, reward=1, next_state=2, alpha=0.1, gamma=0.9', output: 'updated_q=0.55 (approx)' }
     ],
     hiddenTestCase: { input: 'alpha=0, q_table=Unchanged', output: 'q_table should remain identical' },
     hints: ['Q(s,a) = Q(s,a) + alpha * (r + gamma * max(Q(s\', a\')) - Q(s,a))'],
@@ -638,6 +652,10 @@ def ppo_loss(old_log_probs, new_log_probs, advantages, epsilon=0.2):
     """
     Calculates the PPO clipped loss.
     """
+    old_log_probs = np.array(old_log_probs)
+    new_log_probs = np.array(new_log_probs)
+    advantages = np.array(advantages)
+    
     # 1. Calculate ratios: pi_new / pi_old
     # Since we have log probs, ratio = exp(log_new - log_old)
     ratios = np.exp(new_log_probs - old_log_probs)
@@ -683,6 +701,11 @@ def dpo_loss(policy_chosen_logps, policy_rejected_logps, ref_chosen_logps, ref_r
     L_DPO = -E[ log sigmoid ( beta * (r_chosen - r_rejected) ) ]
     where implicit reward r(x,y) = beta * (log pi(y|x) - log pi_ref(y|x))
     """
+    policy_chosen_logps = np.array(policy_chosen_logps)
+    policy_rejected_logps = np.array(policy_rejected_logps)
+    ref_chosen_logps = np.array(ref_chosen_logps)
+    ref_rejected_logps = np.array(ref_rejected_logps)
+
     # 1. Calculate log probability ratios for chosen and rejected
     # log(pi/ref) = log(pi) - log(ref)
     chosen_logratios = policy_chosen_logps - ref_chosen_logps

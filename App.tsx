@@ -7,6 +7,7 @@ import VisualLab from './components/VisualLab';
 import ResearchTool from './components/ResearchTool';
 import ProblemBank from './components/ProblemBank';
 import ProblemSolver from './components/ProblemSolver';
+import Wishes from './components/Wishes';
 import ThemeSelector from './components/ThemeSelector';
 import WelcomePage from './components/WelcomePage';
 import ClickEffects from './components/ClickEffects';
@@ -181,6 +182,7 @@ const App: React.FC = () => {
     { id: AppView.MOCK_INTERVIEW, label: 'Mock Interview', icon: '🎙️' },
     { id: AppView.VISUAL_LAB, label: 'Visual Lab', icon: '🎨' },
     { id: AppView.RESEARCH, label: 'Research', icon: '🔍' },
+    { id: AppView.WISHES, label: 'Wishes', icon: '✨' },
   ];
 
   return (
@@ -267,6 +269,7 @@ const App: React.FC = () => {
                     />
                 )}
                 {view === AppView.RESEARCH && <ResearchTool />}
+                {view === AppView.WISHES && <Wishes />}
             </div>
         )}
       </main>

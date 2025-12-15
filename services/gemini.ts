@@ -1,10 +1,10 @@
 import { 
   GoogleGenAI, 
   Type, 
-  LiveServerMessage,
-  Modality,
-  Blob,
-  GenerateContentResponse
+  LiveServerMessage, 
+  Modality, 
+  Blob, 
+  GenerateContentResponse 
 } from "@google/genai";
 import { PrepPlan, CodeFeedback, InterviewTurn, InterviewReport, TestCaseResult } from "../types";
 
@@ -152,11 +152,13 @@ export const runCodeAgainstTests = async (
 
     Task:
     1. Write a Python script that defines the user's function.
-    2. The script must parse the 'input' string from each test case into actual Python variables (integers, lists, numpy arrays, etc.). 
-       - Example: if input is "nums=[1,2], target=3", parse it so you can call function(nums=[1,2], target=3).
+    2. The script must parse the 'input' string from each test case into actual Python variables.
+       - IMPORTANT: The input string (e.g., "X=[[1,2]], y=[1]") contains Python list literals. 
+       - If the user's code imports 'numpy' or uses matrix operations, you MUST convert these parsed lists into 'numpy.array' before passing them to the function.
     3. Execute the function with these arguments.
     4. Print the "actual" result for each test case.
-    5. Compare the actual result with the expected output (semantically).
+    5. Compare the actual result with the expected output (semantically). 
+       - For numpy arrays, use 'np.allclose' or string comparison of formatted arrays.
     6. After the code execution block, output the results as a JSON array.
     
     Output Format:

@@ -29,6 +29,9 @@ Love&DeepCode is a comprehensive, AI-powered platform designed to help PhD stude
 ## ChangeLog
 
 ### Recent Updates
+- **New Feature: Wishes**:
+  - Added a dedicated feedback page where users can submit requests for specific algorithms, features, or question types directly via email.
+  
 - **Coding Console Improvements**:
   - **Scroll Fix**: Resolved layout issues to ensure smooth scrolling within the code editor for long solutions.
   

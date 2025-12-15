@@ -8,7 +8,8 @@ export enum AppView {
   TUTOR = 'TUTOR',
   RESEARCH = 'RESEARCH',
   PROBLEM_BANK = 'PROBLEM_BANK',
-  PROBLEM_SOLVER = 'PROBLEM_SOLVER'
+  PROBLEM_SOLVER = 'PROBLEM_SOLVER',
+  WISHES = 'WISHES'
 }
 
 export type ThemeId = 'midnight' | 'solar' | 'neon' | 'deepspace' | 'toon' | 'cosmic' | 'sea' | 'flower' | 'snow' | 'gothic';
