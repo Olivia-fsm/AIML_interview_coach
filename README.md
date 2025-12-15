@@ -25,3 +25,15 @@ Love&DeepCode is a comprehensive, AI-powered platform designed to help PhD stude
 - `services/`: API integration logic.
 - `data/`: Static assets (problem library).
 - `types.ts`: TypeScript definitions.
+
+## ChangeLog
+
+### Recent Updates
+- **Coding Console Improvements**:
+  - **Scroll Fix**: Resolved layout issues to ensure smooth scrolling within the code editor for long solutions.
+  
+- **Test Console & Execution**:
+  - **Real Code Execution**: Integrated Gemini's `codeExecution` tool to actually run user Python code in a sandboxed environment, providing real runtime results instead of simulated feedback.
+  - **Hidden Test Cases**: Added `hiddenTestCase` support for every problem in the library to verify edge cases and robust logic.
+  - **Concrete Data**: Updated problem examples in `data/problems.ts` to use real numerical matrices and arrays instead of abstract descriptions, making it easier for users to debug.
+  - **Result UI**: Added a dedicated test results panel showing Pass/Fail status, Actual vs. Expected outputs, and execution logs.

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Love&DeepCode</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     <script>
       tailwind.config = {
         theme: {
@@ -55,6 +56,16 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #64748b; 
       }
+
+      /* Editor Styles */
+      .prism-editor textarea {
+        outline: none !important; 
+      }
+      pre[class*="language-"] {
+        margin: 0 !important;
+        background: transparent !important;
+        text-shadow: none !important;
+      }
     </style>
   <script type="importmap">
 {
@@ -63,7 +74,11 @@
     "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "prismjs": "https://esm.sh/prismjs@1.29.0",
+    "prismjs/components/prism-python": "https://esm.sh/prismjs@1.29.0/components/prism-python",
+    "react-simple-code-editor": "https://esm.sh/react-simple-code-editor@0.13.1",
+    "prismjs/": "https://esm.sh/prismjs@^1.30.0/"
   }
 }
 </script>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppView, PrepPlan, Problem, Submission, CodeFeedback, ThemeId, ThemeColors } from './types';
+import { AppView, PrepPlan, Problem, Submission, CodeFeedback, ThemeId, ThemeColors, VisualHistoryItem } from './types';
 import SetupForm from './components/SetupForm';
 import PlanDashboard from './components/PlanDashboard';
 import MockInterview from './components/MockInterview';
@@ -119,6 +119,9 @@ const App: React.FC = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [activeProblem, setActiveProblem] = useState<Problem | null>(null);
 
+  // New state for Visual Lab History
+  const [visualHistory, setVisualHistory] = useState<VisualHistoryItem[]>([]);
+
   useEffect(() => {
     if (theme) {
       const colors = THEME_CONFIG[theme];
@@ -152,6 +155,10 @@ const App: React.FC = () => {
       ...prev, 
       { problemId, code, feedback, timestamp: Date.now() }
     ]);
+  };
+
+  const handleAddToHistory = (item: VisualHistoryItem) => {
+    setVisualHistory(prev => [item, ...prev]);
   };
 
   if (showWelcome) {
@@ -253,7 +260,12 @@ const App: React.FC = () => {
                     />
                 )}
                 {view === AppView.MOCK_INTERVIEW && <MockInterview />}
-                {view === AppView.VISUAL_LAB && <VisualLab />}
+                {view === AppView.VISUAL_LAB && (
+                    <VisualLab 
+                      history={visualHistory} 
+                      onAddToHistory={handleAddToHistory} 
+                    />
+                )}
                 {view === AppView.RESEARCH && <ResearchTool />}
             </div>
         )}

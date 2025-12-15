@@ -6,7 +6,7 @@ import {
   Blob,
   GenerateContentResponse
 } from "@google/genai";
-import { PrepPlan, CodeFeedback, InterviewTurn, InterviewReport } from "../types";
+import { PrepPlan, CodeFeedback, InterviewTurn, InterviewReport, TestCaseResult } from "../types";
 
 // Helper to get API client
 const getAiClient = () => {
@@ -124,6 +124,173 @@ export const evaluateCodeSubmission = async (
 
   if (!response.text) throw new Error("Analysis failed");
   return JSON.parse(response.text) as CodeFeedback;
+};
+
+// --- Run Test Cases ---
+export const runCodeAgainstTests = async (
+  code: string,
+  testCases: { input: string; output: string }[],
+  problemTitle: string,
+  hiddenTestCase?: { input: string; output: string }
+): Promise<TestCaseResult[]> => {
+  const ai = getAiClient();
+  
+  // Combine all test cases including hidden one
+  const allTests = hiddenTestCase ? [...testCases, { ...hiddenTestCase, isHidden: true }] : testCases;
+  const testCasesStr = JSON.stringify(allTests);
+  
+  const prompt = `
+    You are a Python execution engine.
+    
+    Problem: ${problemTitle}
+    
+    Code provided by user:
+    ${code}
+
+    Test Cases (JSON):
+    ${testCasesStr}
+
+    Task:
+    1. Write a Python script that defines the user's function.
+    2. The script must parse the 'input' string from each test case into actual Python variables (integers, lists, numpy arrays, etc.). 
+       - Example: if input is "nums=[1,2], target=3", parse it so you can call function(nums=[1,2], target=3).
+    3. Execute the function with these arguments.
+    4. Print the "actual" result for each test case.
+    5. Compare the actual result with the expected output (semantically).
+    6. After the code execution block, output the results as a JSON array.
+    
+    Output Format:
+    Return ONLY a JSON block wrapped in \`\`\`json\`\`\` containing an array of objects:
+    [
+      {
+        "actual": "string representation of return value",
+        "passed": boolean (true if actual matches expected logic),
+        "logs": "any print outputs or errors"
+      }
+    ]
+  `;
+
+  // Note: We do NOT use responseSchema here because it conflicts with the CodeExecution tool's
+  // internal output generation steps in some cases. We parse the JSON manually.
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+    config: {
+      tools: [{ codeExecution: {} }]
+    }
+  });
+
+  const text = response.text || "";
+  
+  // Extract JSON from the text response
+  const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/);
+  let aiResults: any[] = [];
+  
+  try {
+      if (jsonMatch) {
+          aiResults = JSON.parse(jsonMatch[1]);
+      } else {
+          // Attempt to parse the whole text if it looks like JSON
+          if (text.trim().startsWith('[')) {
+             aiResults = JSON.parse(text);
+          }
+      }
+  } catch (e) {
+      console.error("Failed to parse test results JSON", text);
+  }
+
+  // Merge with original test cases to ensure input/expected are correct
+  return allTests.map((tc, index) => {
+      const res = aiResults[index] || { actual: "Execution failed", passed: false, logs: "Could not parse AI output or Code Execution failed." };
+      return {
+          input: tc.input,
+          expected: tc.output,
+          actual: res.actual || "No output",
+          passed: res.passed,
+          logs: res.logs,
+          isHidden: (tc as any).isHidden
+      };
+  });
+};
+
+// --- Code Explanation & Verification ---
+export const explainCodeSnippet = async (
+  codeSnippet: string,
+  contextCode: string,
+  problemTitle: string
+): Promise<string> => {
+  const ai = getAiClient();
+  const prompt = `
+    You are an expert Python coding tutor.
+    Problem: ${problemTitle}
+    
+    The user has highlighted the following code snippet to understand it better:
+    \`\`\`python
+    ${codeSnippet}
+    \`\`\`
+    
+    Full Code Context:
+    \`\`\`python
+    ${contextCode}
+    \`\`\`
+    
+    Provide a concise, clear explanation of what this specific snippet does, how it works, and why it is used in this solution.
+  `;
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt
+  });
+  
+  return response.text || "Could not generate explanation.";
+};
+
+export const evaluateCodeExplanation = async (
+  codeSnippet: string,
+  userExplanation: string,
+  contextCode: string,
+  problemTitle: string
+): Promise<{ isCorrect: boolean; score: number; feedback: string }> => {
+  const ai = getAiClient();
+  const prompt = `
+    You are an expert coding interviewer evaluating a candidate's understanding.
+    Problem: ${problemTitle}
+    
+    The candidate highlighted this Snippet:
+    \`\`\`python
+    ${codeSnippet}
+    \`\`\`
+    
+    And provided this Explanation:
+    "${userExplanation}"
+    
+    Full Context:
+    \`\`\`python
+    ${contextCode}
+    \`\`\`
+    
+    Evaluate if their explanation is factually correct and demonstrates good understanding.
+    Return JSON.
+  `;
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          isCorrect: { type: Type.BOOLEAN },
+          score: { type: Type.INTEGER, description: "0-100" },
+          feedback: { type: Type.STRING, description: "Constructive feedback on their explanation." }
+        }
+      }
+    }
+  });
+
+  if (!response.text) throw new Error("Verification failed");
+  return JSON.parse(response.text);
 };
 
 // --- Plan Generation ---

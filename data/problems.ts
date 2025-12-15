@@ -9,8 +9,9 @@ export const PROBLEM_LIBRARY: Problem[] = [
     difficulty: 'Medium',
     description: 'Implement the gradient update step for Logistic Regression using binary cross-entropy loss. Assume X is (N, D) and y is (N, 1).',
     examples: [
-      { input: 'X=[[1,2],[3,4]], y=[[0],[1]], weights=[0.1, 0.1], lr=0.01', output: 'Updated weights vector' }
+      { input: 'X=[[1,2],[3,4]], y=[[0],[1]], weights=[0.1, 0.1], lr=0.01', output: 'weights=[0.095, 0.092] (Approx)' }
     ],
+    hiddenTestCase: { input: 'X=[[0,0],[0,0]], y=[[1],[0]], weights=[0.0, 0.0], lr=0.1', output: 'Updated weights handling zeros correctly' },
     hints: ['Remember the sigmoid function.', 'Gradient is X.T * (y_pred - y)'],
     starterCode: `import numpy as np
 
@@ -57,8 +58,9 @@ def update_weights(X, y, weights, lr):
     difficulty: 'Easy',
     description: 'Implement a function to find the K nearest neighbors of a query point from a dataset using Euclidean distance. Do not use sklearn.',
     examples: [
-      { input: 'points=[[1,1],[2,2],[10,10]], query=[1.2, 1.2], k=1', output: '[[1,1]]' }
+      { input: 'points=[[1,1],[2,2],[10,10]], query=[1.2, 1.2], k=1', output: '[[1, 1]]' }
     ],
+    hiddenTestCase: { input: 'points=[[0,0],[0,0],[1,1]], query=[0,0], k=2', output: '[[0,0],[0,0]]' },
     hints: ['Compute distances to all points.', 'Sort arguments by distance.'],
     starterCode: `import numpy as np
 
@@ -98,8 +100,9 @@ def get_k_nearest_neighbors(points, query, k):
     difficulty: 'Medium',
     description: 'Implement the assignment and update steps of K-Means. Given centroids and points, assign points to clusters and recompute centroids.',
     examples: [
-      { input: 'points NxD, centroids KxD', output: 'New Centroids KxD' }
+      { input: 'points=[[0,0], [2,2], [0,2], [2,0]], centroids=[[0,0], [2,2]]', output: 'new_centroids=[[0,1], [2,1]], labels=[0, 1, 0, 1]' }
     ],
+    hiddenTestCase: { input: 'points=[[1,1],[1,1]], centroids=[[0,0],[10,10]]', output: 'All points assigned to first centroid (if closer), check empty cluster handling' },
     hints: ['Broadcasting can help compute pairwise distances efficiently.', 'Use mean along axis 0 for updates.'],
     starterCode: `import numpy as np
 
@@ -148,8 +151,9 @@ def kmeans_step(points, centroids):
     difficulty: 'Hard',
     description: 'Implement Principal Component Analysis given a data matrix X. Return the top k principal components.',
     examples: [
-      { input: 'X (NxD), k=2', output: 'Components (2xD)' }
+      { input: 'X=[[1,2], [3,4], [5,6]], k=1', output: 'components=[[-0.42, -0.90]] (Top 1 Eigenvector)' }
     ],
+    hiddenTestCase: { input: 'X=Identity(4), k=1', output: 'Any unit vector is valid, check implementation robustness' },
     hints: ['Center the data first.', 'Compute Covariance Matrix.', 'Use np.linalg.eigh or svd.'],
     starterCode: `import numpy as np
 
@@ -198,8 +202,9 @@ def pca(X, k):
     difficulty: 'Hard',
     description: 'Implement the scaled dot-product attention mechanism: softmax(QK^T / sqrt(d_k))V.',
     examples: [
-      { input: 'Q, K, V matrices of shape (B, Seq, Dim)', output: 'Attention Output (B, Seq, Dim)' }
+      { input: 'Q=np.eye(2)[None,:], K=np.eye(2)[None,:], V=np.ones((1,2,2))', output: '[[[0.5, 0.5], [0.5, 0.5]]]' }
     ],
+    hiddenTestCase: { input: 'Q=Zeros, K=Zeros, V=Ones', output: 'Should return Average of V due to uniform softmax' },
     hints: ['Watch out for matrix multiplication dimensions.', 'Apply mask if necessary (optional for basic version).'],
     starterCode: `import numpy as np
 
@@ -250,6 +255,7 @@ def scaled_dot_product_attention(Q, K, V, mask=None):
     examples: [
       { input: 'x = [-1, 0, 2]', output: 'Forward: [0, 0, 2], Backward gradient mask' }
     ],
+    hiddenTestCase: { input: 'x = [-1000, 1000]', output: 'Forward: [0, 1000]' },
     hints: ['ReLU(x) = max(0, x)', 'Gradient is 1 where x > 0, else 0'],
     starterCode: `import numpy as np
 
@@ -288,8 +294,9 @@ class ReLU:
     difficulty: 'Medium',
     description: 'Implement the sinusoidal positional encoding used in Transformers.',
     examples: [
-      { input: 'seq_len=10, d_model=512', output: 'Matrix (10, 512)' }
+      { input: 'seq_len=2, d_model=4', output: '[[0.,0.,0.,0.], [0.84,0.54,0.,1.]] (Approx)' }
     ],
+    hiddenTestCase: { input: 'seq_len=1, d_model=4', output: 'Single vector with correct sin/cos values' },
     hints: ['Use sine for even indices, cosine for odd indices.', 'Div term is 10000^(2i/d_model).'],
     starterCode: `import numpy as np
 
@@ -332,6 +339,7 @@ def positional_encoding(seq_len, d_model):
     examples: [
       { input: '["apple banana", "apple"]', output: 'Sparse matrix or dense array of scores' }
     ],
+    hiddenTestCase: { input: '["a", "b", "c"]', output: 'Should have equal weights/dimensions' },
     hints: ['TF = count/total_words_in_doc', 'IDF = log(total_docs / docs_with_term)'],
     starterCode: `import numpy as np
 from collections import Counter
@@ -389,8 +397,9 @@ def compute_tfidf(corpus):
     difficulty: 'Medium',
     description: 'Implement Normalized Discounted Cumulative Gain (NDCG) at K. This is a primary metric for Ranking and Recommendation systems.',
     examples: [
-      { input: 'relevance=[3, 2, 3, 0, 1, 2], k=3', output: 'Score between 0.0 and 1.0' }
+      { input: 'relevance=[3, 2, 3, 0, 1, 2], k=3', output: '0.94 (Approx)' }
     ],
+    hiddenTestCase: { input: 'relevance=[0,0,0], k=3', output: '0.0' },
     hints: ['DCG = sum(rel / log2(i + 1)).', 'IDCG = DCG of ideal (sorted) relevance.', 'NDCG = DCG / IDCG.'],
     starterCode: `import numpy as np
 
@@ -436,8 +445,9 @@ def ndcg_at_k(relevance, k):
     difficulty: 'Medium',
     description: 'Implement the BM25 scoring function for a single document given a query.',
     examples: [
-      { input: 'doc_len=100, avg_dl=80, tf=3, qf=1, N=1000, n=50', output: 'Score float' }
+      { input: 'doc_len=100, avg_dl=80, tf=3, qf=1, N=1000, n=50', output: 'Score (float)' }
     ],
+    hiddenTestCase: { input: 'tf=0', output: 'Score should be 0' },
     hints: ['BM25 = IDF * ((TF * (k1 + 1)) / (TF + k1 * (1 - b + b * DL / AVG_DL)))', 'IDF = log((N - n + 0.5) / (n + 0.5) + 1)'],
     starterCode: `import math
 
@@ -486,6 +496,7 @@ def bm25_score(tf, doc_len, avg_dl, N, n, k1=1.5, b=0.75):
     examples: [
       { input: 'box1=[0,0,2,2], box2=[1,1,3,3]', output: '0.1428 (Area of intersection / Area of union)' }
     ],
+    hiddenTestCase: { input: 'box1=[0,0,1,1], box2=[5,5,6,6]', output: '0.0 (No overlap)' },
     hints: ['Find intersection coordinates: max(x1s), max(y1s), min(x2s), min(y2s).', 'Width = max(0, x2-x1).'],
     starterCode: `def iou(box1, box2):
     """
@@ -524,8 +535,9 @@ def bm25_score(tf, doc_len, avg_dl, N, n, k1=1.5, b=0.75):
     difficulty: 'Medium',
     description: 'Implement a 2D convolution operation (valid padding) given an image and a kernel.',
     examples: [
-      { input: 'Image 4x4, Kernel 3x3', output: 'Output 2x2' }
+      { input: 'image=np.ones((4,4)), kernel=np.ones((3,3))', output: '[[9., 9.], [9., 9.]]' }
     ],
+    hiddenTestCase: { input: 'Image 3x3, Kernel 3x3', output: 'Output 1x1 (Dot product of entire image)' },
     hints: ['Nested loops iterating over the image dimensions.'],
     starterCode: `import numpy as np
 
@@ -568,8 +580,9 @@ def convolve2d(image, kernel):
     difficulty: 'Easy',
     description: 'Write the function to update a Q-table entry given state s, action a, reward r, next state s_next, learning rate alpha, and discount gamma.',
     examples: [
-      { input: 'current_q, reward=1, max_next_q=0.5', output: 'updated_q' }
+      { input: 'q_table={0:{1:0.5}}, state=0, action=1, reward=1, next_state=2, alpha=0.1, gamma=0.9', output: 'updated_q=0.595 (approx)' }
     ],
+    hiddenTestCase: { input: 'alpha=0, q_table=Unchanged', output: 'q_table should remain identical' },
     hints: ['Q(s,a) = Q(s,a) + alpha * (r + gamma * max(Q(s\', a\')) - Q(s,a))'],
     starterCode: `def update_q_table(q_table, state, action, reward, next_state, alpha, gamma):
     """
@@ -587,7 +600,7 @@ def update_q_table(q_table, state, action, reward, next_state, alpha, gamma):
     
     # Get max Q value for next state
     # If next_state is terminal, max_next_q is 0
-    max_next_q = np.max(q_table[next_state])
+    max_next_q = np.max(q_table[next_state]) if next_state in q_table else 0
     
     # Compute target
     target = reward + gamma * max_next_q
@@ -606,8 +619,9 @@ def update_q_table(q_table, state, action, reward, next_state, alpha, gamma):
     difficulty: 'Hard',
     description: 'Implement the Probabilistic Policy Optimization (PPO) clipped surrogate objective function.',
     examples: [
-      { input: 'ratios (new/old), advantages, epsilon', output: 'Scalar Loss' }
+      { input: 'old_probs=[0.5], new_probs=[0.6], adv=[1.0], eps=0.2', output: 'loss=-1.2 (Minimized neg objective)' }
     ],
+    hiddenTestCase: { input: 'ratio=1.0, adv=1.0, eps=0.2', output: '-1.0' },
     hints: ['Loss = -min(ratio*adv, clip(ratio, 1-eps, 1+eps)*adv).', 'Remember we typically minimize negative objective.'],
     starterCode: `import numpy as np
 
@@ -649,8 +663,9 @@ def ppo_loss(old_log_probs, new_log_probs, advantages, epsilon=0.2):
     difficulty: 'Medium',
     description: 'Implement the Direct Preference Optimization (DPO) loss function used for aligning LLMs without a Reward Model.',
     examples: [
-      { input: 'policy_chosen_logps, policy_rejected_logps, ref_chosen_logps, ref_rejected_logps', output: 'Scalar Loss' }
+      { input: 'pol_chosen=[-1.0], pol_rejected=[-2.0], ref_chosen=[-1.0], ref_rejected=[-2.0]', output: '0.693 (Log Sigmoid of 0)' }
     ],
+    hiddenTestCase: { input: 'Equal logps for all', output: 'Standard softplus loss for 0 difference' },
     hints: ['DPO uses a binary cross entropy objective on the implicit reward.', 'log(sigmoid(beta * (log_ratios_chosen - log_ratios_rejected)))'],
     starterCode: `import numpy as np
 
@@ -697,8 +712,9 @@ def dpo_loss(policy_chosen_logps, policy_rejected_logps, ref_chosen_logps, ref_r
     difficulty: 'Hard',
     description: 'Implement the Group Relative Policy Optimization (GRPO) advantage calculation. Given a group of rewards for the same input, normalize them to compute advantages.',
     examples: [
-        { input: 'rewards = [1.0, 2.0, 3.0]', output: 'Advantages = [-1.0, 0.0, 1.0]' }
+        { input: 'rewards = [1.0, 2.0, 3.0]', output: 'Advantages = [-1.22, 0.0, 1.22]' }
     ],
+    hiddenTestCase: { input: 'rewards = [5.0, 5.0]', output: 'Advantages = [0.0, 0.0] (handling std=0)' },
     hints: ['Advantage = (Reward - Mean(Group)) / Std(Group)', 'Compute statistics over the group dimension.'],
     starterCode: `import numpy as np
 
@@ -741,8 +757,9 @@ def compute_grpo_advantages(rewards):
     difficulty: 'Hard',
     description: 'Implement the UCB1 formula to select the best child node in the selection phase of Monte Carlo Tree Search.',
     examples: [
-      { input: 'Parent visits, Child visits list, Child wins list', output: 'Index of selected child' }
+      { input: 'parent_visits=100, child_visits=[10, 50], child_wins=[5, 30], c=1.41', output: '0 (Higher UCB score due to exploration)' }
     ],
+    hiddenTestCase: { input: 'Parent visits=10, child has 0 visits', output: 'Index of unvisited child' },
     hints: ['score = (wins/visits) + c * sqrt(ln(parent_visits)/visits)'],
     starterCode: `import math
 import numpy as np
@@ -790,8 +807,9 @@ def uct_select(parent_visits, child_visits, child_wins, c=1.41):
     difficulty: 'Medium',
     description: 'Implement a simplified BLEU score computation for a single sentence pair considering only unigrams (1-gram) precision.',
     examples: [
-      { input: 'cand="the cat is on the mat", ref="the cat is on mat"', output: 'precision score' }
+      { input: 'cand="the cat is on the mat", ref="the cat is on mat"', output: '0.83 (5/6 matches)' }
     ],
+    hiddenTestCase: { input: 'cand="the the the", ref="the cat"', output: '1/3 (clipped count is 1)' },
     hints: ['Count occurrences in candidate.', 'Clip count by max occurrences in reference.', 'Divide by total candidate words.'],
     starterCode: `from collections import Counter
 
@@ -835,6 +853,7 @@ def bleu_1_gram(candidate, reference):
     examples: [
       { input: 'sequences=[([1], 0.5)], k=2', output: 'Top 2 sequences with updated scores' }
     ],
+    hiddenTestCase: { input: 'k=1', output: 'Top 1 sequence' },
     hints: ['Expand every current sequence by all possible vocabulary tokens.', 'Score = old_score + log(prob)', 'Select top k from ALL candidates.'],
     starterCode: `import numpy as np
 
@@ -883,8 +902,9 @@ def beam_search_step(sequences, next_token_probs, k):
     difficulty: 'Medium',
     description: 'Implement the routing logic for a Mixture of Experts layer. Given inputs and gate weights, select the top-k experts and compute routing weights.',
     examples: [
-        { input: 'x=(Batch, Dim), W_gate=(Dim, NumExperts), k=2', output: 'Indices and Weights' }
+        { input: 'x=[[1,0]], w_gate=[[0.8, 0.1, 0.1], [0.1, 0.8, 0.1]], k=1', output: 'indices=[[0]], weights=[[1.0]]' }
     ],
+    hiddenTestCase: { input: 'k=1', output: 'Top-1 expert' },
     hints: ['Compute logits = x @ W_gate', 'Select top-k indices', 'Softmax ONLY the top-k values'],
     starterCode: `import numpy as np
 
@@ -934,8 +954,9 @@ def moe_gating(x, w_gate, k=2):
     difficulty: 'Medium',
     description: 'Generate the attention mask for sliding window attention (e.g. Mistral). Each token can only attend to itself and w previous tokens.',
     examples: [
-        { input: 'seq_len=5, window_size=2', output: '5x5 Boolean Mask' }
+        { input: 'seq_len=5, window_size=2', output: '5x5 Boolean Mask (Diagonals)' }
     ],
+    hiddenTestCase: { input: 'window_size=0', output: 'Identity matrix (attend only to self)' },
     hints: ['mask[i, j] is True if i >= j and i - j <= window_size'],
     starterCode: `import numpy as np
 
@@ -970,8 +991,9 @@ def sliding_window_mask(seq_len, window_size):
     difficulty: 'Medium',
     description: 'Implement a function to update the Key-Value cache during autoregressive decoding.',
     examples: [
-        { input: 'new_k, new_v, past_kv_cache', output: 'updated_cache' }
+        { input: 'new_k=[[1]], new_v=[[2]], cache=([[0]], [[0]])', output: 'updated_k=[[0, 1]], updated_v=[[0, 2]]' }
     ],
+    hiddenTestCase: { input: 'past_kv_cache=None', output: 'Returns new_k, new_v' },
     hints: ['Concatenate new keys/values to the existing cache along the sequence dimension.'],
     starterCode: `import numpy as np
 
@@ -1008,8 +1030,9 @@ def update_kv_cache(new_k, new_v, cache=None):
     difficulty: 'Hard',
     description: 'Simulate the forward pass of a Tensor Parallel MLP block (ColumnParallel -> RowParallel). Assume input x is replicated.',
     examples: [
-        { input: 'x, W_col, W_row (split parts)', output: 'Final output (synchronized)' }
+        { input: 'x=[[1.0]], W_col_shard=[[0.5]], W_row_shard=[[1.0]]', output: '[[0.5]] (Partial sum)' }
     ],
+    hiddenTestCase: { input: 'x=zeros', output: 'Output should be zeros' },
     hints: ['ColumnParallel splits output dim. RowParallel splits input dim.', 'Need an AllReduce (sum) after RowParallel to synchronize.'],
     starterCode: `import numpy as np
 

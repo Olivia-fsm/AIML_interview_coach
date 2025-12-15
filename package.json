@@ -12,7 +12,9 @@
     "recharts": "^3.5.1",
     "react": "^19.2.3",
     "@google/genai": "^1.33.0",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "prismjs": "^1.30.0",
+    "react-simple-code-editor": "0.13.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

@@ -1,4 +1,5 @@
 
+
 export enum AppView {
   SETUP = 'SETUP',
   DASHBOARD = 'DASHBOARD',
@@ -40,9 +41,19 @@ export interface Problem {
   difficulty: 'Easy' | 'Medium' | 'Hard';
   description: string;
   examples: { input: string; output: string }[];
+  hiddenTestCase: { input: string; output: string };
   hints: string[];
   solution: string;
   starterCode: string;
+}
+
+export interface TestCaseResult {
+  input: string;
+  expected: string;
+  actual: string;
+  passed: boolean;
+  logs?: string;
+  isHidden?: boolean;
 }
 
 export interface CodeFeedback {
@@ -101,4 +112,15 @@ export interface InterviewReport {
     expectedAnswer: string;
     feedback: string;
   }[];
+}
+
+export interface VisualHistoryItem {
+  id: string;
+  type: 'image' | 'video';
+  mode: 'create' | 'edit' | 'video';
+  prompt: string;
+  mediaUrl: string;
+  explanation: string;
+  sourceImage?: string;
+  timestamp: number;
 }
