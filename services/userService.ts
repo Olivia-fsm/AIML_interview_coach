@@ -135,11 +135,6 @@ const fetchFullProfile = async (userId: string): Promise<UserProfile> => {
 
 // --- Actions (Write to DB) ---
 
-// Helper: Optimistic updates allow the UI to function even if DB writes fail due to RLS policies
-const getOptimisticProfile = async (userId: string): Promise<UserProfile> => {
-    return await fetchFullProfile(userId);
-};
-
 export const toggleLikeProblem = async (userId: string, problemId: string): Promise<UserProfile> => {
   // 1. Get current state from DB or fresh fetch to be safe
   let currentProfile = await fetchFullProfile(userId);
@@ -176,7 +171,6 @@ export const saveVisualGeneration = async (userId: string, item: VisualHistoryIt
 
   if (insertError) {
       console.error("Failed to save visual history (DB):", insertError);
-      // Don't throw, proceed to try updating XP or just return optimistic state
   }
 
   // 2. Award XP
@@ -195,16 +189,20 @@ export const saveVisualGeneration = async (userId: string, item: VisualHistoryIt
   }
 
   // 3. Return Optimistic Result
-  // We fetch the profile. If the insert failed (e.g. due to RLS), the item won't be in the DB.
-  // We MUST manually append it to the returned profile so the UI shows it for this session.
   const freshProfile = await fetchFullProfile(userId);
   
-  // Check if item is present. If not (insert failed), add it manually.
-  const exists = freshProfile.visualHistory.some(h => h.timestamp === item.timestamp);
+  // FIXED: Deduplication check
+  // Compare prompt, mode, and approximate timestamp (within 10 seconds)
+  // This prevents displaying both the DB version (server time) and local version (client time)
+  const exists = freshProfile.visualHistory.some(h => 
+      h.prompt === item.prompt && 
+      h.mode === item.mode &&
+      Math.abs(h.timestamp - item.timestamp) < 10000 
+  );
+  
   if (!exists) {
       return {
           ...freshProfile,
-          // Optimistically update XP/Level if we calculated them
           xp: xp || freshProfile.xp,
           level: level || freshProfile.level,
           visualHistory: [item, ...freshProfile.visualHistory]
@@ -266,9 +264,14 @@ export const saveSubmission = async (userId: string, submission: Submission): Pr
   // Use UPDATE
   await supabase.from('profiles').update({ xp, level }).eq('id', userId);
 
-  // Optimistic Return
+  // Optimistic Return with Deduplication
   const freshProfile = await fetchFullProfile(userId);
-  const exists = freshProfile.submissions.some(s => s.timestamp === submission.timestamp);
+  
+  // FIXED: Deduplication check using approximate timestamp and problem ID
+  const exists = freshProfile.submissions.some(s => 
+      s.problemId === submission.problemId &&
+      Math.abs(s.timestamp - submission.timestamp) < 10000
+  );
   
   if (!exists) {
       return {
