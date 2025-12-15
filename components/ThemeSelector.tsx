@@ -66,6 +66,12 @@ const ThemeSelector: React.FC<Props> = ({ onSelectTheme }) => {
       name: 'Gothic Castle', 
       desc: 'Dark atmosphere with feathers and electricity.',
       colors: ['bg-[#0f0505]', 'bg-[#2a0a0a]', 'bg-[#9f1239]']
+    },
+    { 
+      id: 'christmas', 
+      name: 'Christmas Eve', 
+      desc: 'Festive red & green with a tree and reindeer.',
+      colors: ['bg-[#022c22]', 'bg-[#064e3b]', 'bg-[#ef4444]']
     }
   ];
 

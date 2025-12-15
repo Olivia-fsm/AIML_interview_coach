@@ -16,7 +16,7 @@ export enum AppView {
   PROFILE = 'PROFILE'
 }
 
-export type ThemeId = 'midnight' | 'solar' | 'neon' | 'deepspace' | 'toon' | 'cosmic' | 'sea' | 'flower' | 'snow' | 'gothic';
+export type ThemeId = 'midnight' | 'solar' | 'neon' | 'deepspace' | 'toon' | 'cosmic' | 'sea' | 'flower' | 'snow' | 'gothic' | 'christmas';
 
 export interface User {
   id: string;

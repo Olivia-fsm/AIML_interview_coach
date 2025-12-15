@@ -163,8 +163,16 @@ const ClickEffects: React.FC<Props> = ({ theme }) => {
           drawFishTail(ctx, p.x, p.y, p.size, p.color, angle);
       } else if (theme === 'flower') {
           drawFlower(ctx, p.x, p.y, p.size, p.color, p.rotation);
-      } else if (theme === 'snow') {
-          drawSnowflake(ctx, p.x, p.y, p.size, p.color, p.rotation);
+      } else if (theme === 'snow' || theme === 'christmas') {
+          if (theme === 'christmas' && Math.random() > 0.5) {
+               // Festive confetti circle for Christmas mix
+              ctx.fillStyle = p.color;
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+              ctx.fill();
+          } else {
+              drawSnowflake(ctx, p.x, p.y, p.size, p.color, p.rotation);
+          }
       } else if (theme === 'gothic') {
           drawElectricity(ctx, p);
       } else {
@@ -225,6 +233,10 @@ const ClickEffects: React.FC<Props> = ({ theme }) => {
             size = Math.random() * 8 + 6;
         } else if (theme === 'snow') {
             color = '#F0F8FF';
+            size = Math.random() * 6 + 4;
+        } else if (theme === 'christmas') {
+            const colors = ['#ef4444', '#22c55e', '#fbbf24', '#ffffff']; // Red, Green, Gold, White
+            color = colors[Math.floor(Math.random() * colors.length)];
             size = Math.random() * 6 + 4;
         } else if (theme === 'gothic') {
             // Dark red / crimson / blood red for gothic electricity

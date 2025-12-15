@@ -20,6 +20,7 @@ import SeaBackground from './components/SeaBackground';
 import FlowerBackground from './components/FlowerBackground';
 import SnowBackground from './components/SnowBackground';
 import GothicBackground from './components/GothicBackground';
+import ChristmasBackground from './components/ChristmasBackground';
 import { restoreSession, saveSubmission, saveUserPlan, saveVisualGeneration, toggleLikeProblem, logoutUser, saveGameScore } from './services/userService';
 
 const THEME_CONFIG: Record<ThemeId, ThemeColors> = {
@@ -112,6 +113,15 @@ const THEME_CONFIG: Record<ThemeId, ThemeColors> = {
     textMuted: '#a8a29e', // Warm gray
     colPrimary: '#9f1239', // Rose 800
     borderCol: 'rgba(159, 18, 57, 0.3)', // Reddish border
+  },
+  christmas: {
+    bgApp: 'transparent',
+    bgPanel: 'rgba(6, 78, 59, 0.8)', // Emerald 900/80
+    bgCard: 'rgba(2, 44, 34, 0.7)', // Emerald 950/70
+    textMain: '#f0fdf4', // Green 50 (Ice White)
+    textMuted: '#86efac', // Green 300
+    colPrimary: '#ef4444', // Red 500
+    borderCol: 'rgba(16, 185, 129, 0.3)', // Emerald 500
   }
 };
 
@@ -260,6 +270,7 @@ const App: React.FC = () => {
       {theme === 'flower' && <FlowerBackground />}
       {theme === 'snow' && <SnowBackground />}
       {theme === 'gothic' && <GothicBackground />}
+      {theme === 'christmas' && <ChristmasBackground />}
       
       <ClickEffects theme={theme} />
       
@@ -310,8 +321,8 @@ const App: React.FC = () => {
       {/* Main Content Area */}
       <main className={`flex-1 flex flex-col ${view !== AppView.SETUP ? 'ml-64' : ''} h-screen overflow-hidden relative z-10`}>
         {view === AppView.SETUP && (
-            <div className={`flex-1 flex flex-col items-center justify-center relative ${['cosmic', 'sea', 'flower', 'snow', 'gothic'].includes(theme) ? "" : "bg-[url('https://picsum.photos/1920/1080?blur=10')] bg-cover bg-center"}`}>
-                {!['cosmic', 'sea', 'flower', 'snow', 'gothic'].includes(theme) && <div className="absolute inset-0 bg-app-bg/90 backdrop-blur-sm"></div>}
+            <div className={`flex-1 flex flex-col items-center justify-center relative ${['cosmic', 'sea', 'flower', 'snow', 'gothic', 'christmas'].includes(theme) ? "" : "bg-[url('https://picsum.photos/1920/1080?blur=10')] bg-cover bg-center"}`}>
+                {!['cosmic', 'sea', 'flower', 'snow', 'gothic', 'christmas'].includes(theme) && <div className="absolute inset-0 bg-app-bg/90 backdrop-blur-sm"></div>}
                 <div className="relative z-10 w-full">
                     <SetupForm 
                         onPlanGenerated={handlePlanGenerated} 
