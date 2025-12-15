@@ -17,6 +17,22 @@ const getAiClient = () => {
   return new GoogleGenAI({ apiKey });
 };
 
+// --- Helper: Robust JSON Parser ---
+const parseGeminiJson = <T>(text: string): T => {
+    try {
+        // Try extracting from markdown code blocks first
+        const match = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/);
+        if (match) {
+            return JSON.parse(match[1]);
+        }
+        // Try parsing the raw text
+        return JSON.parse(text);
+    } catch (e) {
+        console.error("JSON Parse failed for text:", text);
+        throw new Error("Failed to parse AI response: Invalid JSON format");
+    }
+};
+
 // --- Helper: Domain Validation & Prompt Refinement ---
 const validateAndRefinePrompt = async (userPrompt: string, targetType: 'image' | 'video'): Promise<{isValid: boolean, refusalReason?: string, lectureNotes: string, visualPrompt: string}> => {
   const ai = getAiClient();
@@ -123,7 +139,17 @@ export const evaluateCodeSubmission = async (
   });
 
   if (!response.text) throw new Error("Analysis failed");
-  return JSON.parse(response.text) as CodeFeedback;
+  const parsed = parseGeminiJson<any>(response.text);
+
+  // Strict sanitization to prevent UI crashes
+  return {
+    correctnessScore: typeof parsed.correctnessScore === 'number' ? parsed.correctnessScore : 0,
+    isCorrect: !!parsed.isCorrect,
+    timeComplexity: typeof parsed.timeComplexity === 'string' ? parsed.timeComplexity : String(parsed.timeComplexity || '?'),
+    spaceComplexity: typeof parsed.spaceComplexity === 'string' ? parsed.spaceComplexity : String(parsed.spaceComplexity || '?'),
+    analysis: typeof parsed.analysis === 'string' ? parsed.analysis : JSON.stringify(parsed.analysis || "No analysis provided."),
+    improvements: Array.isArray(parsed.improvements) ? parsed.improvements.map((i: any) => String(i)) : []
+  };
 };
 
 // --- Run Test Cases ---
@@ -183,33 +209,53 @@ export const runCodeAgainstTests = async (
   });
 
   const text = response.text || "";
-  
-  // Extract JSON from the text response
-  const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/);
   let aiResults: any[] = [];
   
   try {
-      if (jsonMatch) {
-          aiResults = JSON.parse(jsonMatch[1]);
-      } else {
-          // Attempt to parse the whole text if it looks like JSON
-          if (text.trim().startsWith('[')) {
-             aiResults = JSON.parse(text);
-          }
-      }
+      aiResults = parseGeminiJson(text);
   } catch (e) {
-      console.error("Failed to parse test results JSON", text);
+      console.warn("Using fallback parsing for test results");
+      // Fallback: Try to find any list in the text
+      const match = text.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (match) {
+          try {
+              aiResults = JSON.parse(match[0]);
+          } catch(err) { console.error("Fallback parse failed"); }
+      }
   }
 
   // Merge with original test cases to ensure input/expected are correct
   return allTests.map((tc, index) => {
       const res = aiResults[index] || { actual: "Execution failed", passed: false, logs: "Could not parse AI output or Code Execution failed." };
+      
+      // CRITICAL FIX: Ensure 'actual' is always a string.
+      // If code execution returns a Python dict/object, Gemini might return it as a JSON object.
+      // React cannot render Objects directly, causing the [object Object] error.
+      let actualVal = res.actual;
+      if (typeof actualVal === 'object' && actualVal !== null) {
+          actualVal = JSON.stringify(actualVal);
+      } else if (actualVal === undefined || actualVal === null) {
+          actualVal = "No output";
+      } else {
+          actualVal = String(actualVal);
+      }
+
+      // CRITICAL FIX: Ensure 'logs' is always a string.
+      let logsVal = res.logs;
+      if (typeof logsVal === 'object' && logsVal !== null) {
+          logsVal = JSON.stringify(logsVal);
+      } else if (logsVal === undefined || logsVal === null) {
+          logsVal = "";
+      } else {
+          logsVal = String(logsVal);
+      }
+
       return {
           input: tc.input,
           expected: tc.output,
-          actual: res.actual || "No output",
-          passed: res.passed,
-          logs: res.logs,
+          actual: actualVal,
+          passed: !!res.passed,
+          logs: logsVal,
           isHidden: (tc as any).isHidden
       };
   });
@@ -244,7 +290,8 @@ export const explainCodeSnippet = async (
     contents: prompt
   });
   
-  return response.text || "Could not generate explanation.";
+  const text = response.text || "Could not generate explanation.";
+  return typeof text === 'string' ? text : JSON.stringify(text);
 };
 
 export const evaluateCodeExplanation = async (
@@ -292,7 +339,13 @@ export const evaluateCodeExplanation = async (
   });
 
   if (!response.text) throw new Error("Verification failed");
-  return JSON.parse(response.text);
+  const parsed = parseGeminiJson<any>(response.text);
+
+  return {
+      isCorrect: !!parsed.isCorrect,
+      score: typeof parsed.score === 'number' ? parsed.score : 0,
+      feedback: typeof parsed.feedback === 'string' ? parsed.feedback : JSON.stringify(parsed.feedback || "")
+  };
 };
 
 // --- Plan Generation ---
@@ -349,7 +402,7 @@ export const generateStudyPlan = async (
   if (!response.text) throw new Error("No plan generated");
   
   try {
-    const parsed = JSON.parse(response.text);
+    const parsed = parseGeminiJson<any>(response.text);
     
     // Validate and sanitize structure to prevent UI crashes
     if (!parsed.schedule || !Array.isArray(parsed.schedule)) {
@@ -401,7 +454,7 @@ export const researchTopic = async (query: string) => {
   });
   
   return {
-    text: response.text,
+    text: response.text || "No results found.",
     sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web).filter(Boolean) || []
   };
 };
@@ -429,33 +482,23 @@ export const findJobPostings = async (role: string, location: string): Promise<J
     contents: prompt,
     config: {
       tools: [{ googleSearch: {} }]
-      // Note: We cannot use responseMimeType="application/json" with Search tools, 
-      // so we ask for a JSON block in the prompt.
     }
   });
 
   const text = response.text || "";
   
-  // Extract JSON
-  const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || text.match(/```\n([\s\S]*?)\n```/) || text.match(/\[\s*\{[\s\S]*\}\s*\]/);
-  
-  if (!jsonMatch) {
-      console.warn("Could not parse job search JSON", text);
-      return [];
-  }
-  
   try {
-      const raw = jsonMatch[1] || jsonMatch[0];
-      const jobs = JSON.parse(raw);
+      const jobs = parseGeminiJson<any[]>(text);
+      if (!Array.isArray(jobs)) return [];
       
       // Post-process: If URL is empty, we can rely on the UI to generate a search link
       return jobs.map((j: any) => ({
-          title: j.title || "Unknown Role",
-          company: j.company || "Unknown Company",
-          location: j.location || location || "Remote",
-          summary: j.summary || "No description available.",
-          platform: j.platform || "Web",
-          url: j.url || "" 
+          title: String(j.title || "Unknown Role"),
+          company: String(j.company || "Unknown Company"),
+          location: String(j.location || location || "Remote"),
+          summary: String(j.summary || "No description available."),
+          platform: String(j.platform || "Web"),
+          url: String(j.url || "") 
       }));
   } catch (e) {
       console.error("Job JSON parse error", e);
@@ -475,7 +518,7 @@ export const getTutorResponse = async (history: {role: string, parts: {text: str
   });
   
   const result = await chat.sendMessage({ message });
-  return result.text;
+  return result.text || "";
 };
 
 // --- Visual Lab: Image Gen ---
@@ -517,9 +560,6 @@ export const generateConceptImage = async (prompt: string, size: '1K' | '2K' | '
 
 // --- Visual Lab: Image Edit ---
 export const editConceptImage = async (base64Image: string, prompt: string) => {
-  // For Edit, we assume the user is already modifying valid content, but we can still try to explain the change.
-  // We'll skip strict validation to allow creative edits, but we'll try to generate a note.
-  
   // Auth Check
   if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) {
      await window.aistudio.openSelectKey();
@@ -662,7 +702,20 @@ export const generateInterviewReport = async (turns: InterviewTurn[]): Promise<I
     });
 
     if (!response.text) throw new Error("Failed to generate report");
-    return JSON.parse(response.text) as InterviewReport;
+    const parsed = parseGeminiJson<any>(response.text);
+
+    return {
+        overallScore: typeof parsed.overallScore === 'number' ? parsed.overallScore : 0,
+        summary: typeof parsed.summary === 'string' ? parsed.summary : "",
+        strengths: Array.isArray(parsed.strengths) ? parsed.strengths.map(String) : [],
+        weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.map(String) : [],
+        qna: Array.isArray(parsed.qna) ? parsed.qna.map((item: any) => ({
+            question: String(item.question || ""),
+            userAnswer: String(item.userAnswer || ""),
+            expectedAnswer: String(item.expectedAnswer || ""),
+            feedback: String(item.feedback || "")
+        })) : []
+    };
 }
 
 

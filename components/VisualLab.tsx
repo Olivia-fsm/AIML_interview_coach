@@ -29,6 +29,23 @@ const VisualLab: React.FC<Props> = ({ history, onAddToHistory }) => {
     }
   };
 
+  // Helper to convert Blob URL to Base64 for database storage
+  const blobUrlToBase64 = async (blobUrl: string): Promise<string> => {
+      try {
+          const response = await fetch(blobUrl);
+          const blob = await response.blob();
+          return new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+          });
+      } catch (e) {
+          console.error("Error converting blob to base64", e);
+          return "";
+      }
+  };
+
   const executeAction = async () => {
     if (!prompt) return;
     setIsLoading(true);
@@ -56,16 +73,25 @@ const VisualLab: React.FC<Props> = ({ history, onAddToHistory }) => {
       }
       
       if (result) {
-        setResultUrl(mode === 'video' ? result.videoUrl : result.imageUrl);
+        const tempUrl = mode === 'video' ? result.videoUrl : result.imageUrl;
+        setResultUrl(tempUrl);
         setExplanation(result.explanation);
         
+        // Convert Blob URL to Base64 for persistence if it's a video or blob
+        let storageUrl = tempUrl || "";
+        if (tempUrl && tempUrl.startsWith('blob:')) {
+             storageUrl = await blobUrlToBase64(tempUrl);
+        } else if (tempUrl) {
+             storageUrl = tempUrl;
+        }
+
         // Add to history
         onAddToHistory({
             id: Date.now().toString(),
             type: mode === 'video' ? 'video' : 'image',
             mode: mode,
             prompt: prompt,
-            mediaUrl: (mode === 'video' ? result.videoUrl : result.imageUrl) || '',
+            mediaUrl: storageUrl, // Save the persistent Base64 string
             explanation: result.explanation || '',
             sourceImage: uploadData || undefined,
             timestamp: Date.now()

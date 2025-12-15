@@ -1,201 +1,296 @@
-import { User, UserProfile, VisualHistoryItem, Submission, PrepPlan } from "../types";
+import { supabase } from "./supabaseClient";
+import { User, UserProfile, VisualHistoryItem, Submission, PrepPlan, CodeFeedback } from "../types";
 
-const DB_KEY_USERS = 'ldc_users';
-const DB_KEY_PROFILES = 'ldc_profiles';
-const SESSION_KEY = 'ldc_session';
+// --- Helpers to map Supabase Data to App Types ---
 
-// --- Database Simulation ---
+const mapUser = (sbUser: any): User => ({
+  id: sbUser.id,
+  email: sbUser.email || '',
+  name: sbUser.user_metadata?.full_name || 'Researcher',
+  avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${sbUser.user_metadata?.full_name || sbUser.email}`,
+  joinedAt: new Date(sbUser.created_at).getTime()
+});
 
-const getDb = () => {
-  const users = JSON.parse(localStorage.getItem(DB_KEY_USERS) || '[]');
-  const profiles = JSON.parse(localStorage.getItem(DB_KEY_PROFILES) || '{}');
-  return { users, profiles };
+// Helper to sanitize feedback object to ensure all props are correct types (no objects where strings expected)
+const sanitizeFeedback = (fb: any): CodeFeedback => {
+    if (!fb || typeof fb !== 'object') {
+        return { correctnessScore: 0, isCorrect: false, analysis: "N/A", improvements: [], timeComplexity: "?", spaceComplexity: "?" };
+    }
+    return {
+        correctnessScore: typeof fb.correctnessScore === 'number' ? fb.correctnessScore : 0,
+        isCorrect: !!fb.isCorrect,
+        analysis: typeof fb.analysis === 'string' ? fb.analysis : "No analysis available.",
+        improvements: Array.isArray(fb.improvements) ? fb.improvements.map((i:any) => String(i)) : [],
+        timeComplexity: typeof fb.timeComplexity === 'string' ? fb.timeComplexity : "?",
+        spaceComplexity: typeof fb.spaceComplexity === 'string' ? fb.spaceComplexity : "?"
+    };
 };
 
-const saveDb = (users: User[], profiles: Record<string, UserProfile>) => {
-  localStorage.setItem(DB_KEY_USERS, JSON.stringify(users));
-  localStorage.setItem(DB_KEY_PROFILES, JSON.stringify(profiles));
-};
+const mapProfile = (sbProfile: any, sbSubmissions: any[], sbVisuals: any[]): UserProfile => ({
+  userId: sbProfile.id,
+  level: sbProfile.level || 1,
+  xp: sbProfile.xp || 0,
+  likedProblemIds: sbProfile.liked_problem_ids || [],
+  gameHighScores: sbProfile.game_high_scores || {},
+  currentPlan: sbProfile.current_plan || undefined,
+  // Map Submissions: SQL 'created_at' -> TS 'timestamp'
+  submissions: sbSubmissions.map((s: any) => ({
+    problemId: s.problem_id,
+    code: s.code,
+    feedback: sanitizeFeedback(s.feedback),
+    timestamp: new Date(s.created_at).getTime()
+  })),
+  // Map Visuals
+  visualHistory: sbVisuals.map((v: any) => ({
+    id: v.id,
+    type: v.type,
+    mode: v.mode,
+    prompt: v.prompt,
+    mediaUrl: v.media_url,
+    explanation: v.explanation,
+    timestamp: new Date(v.created_at).getTime()
+  }))
+});
 
 // --- Auth Services ---
 
-export const loginUser = async (email: string, password: string): Promise<{user: User, profile: UserProfile}> => {
-  // Simulate network delay
-  await new Promise(r => setTimeout(r, 800));
-  
-  const { users, profiles } = getDb();
-  const user = users.find((u: User) => u.email === email && u.password === password);
-  
-  if (!user) {
-    throw new Error("Invalid email or password");
-  }
-
-  const profile = profiles[user.id] || initProfile(user.id);
-  localStorage.setItem(SESSION_KEY, user.id);
-  
-  return { user, profile };
-};
-
 export const registerUser = async (email: string, password: string, name: string): Promise<{user: User, profile: UserProfile}> => {
-  await new Promise(r => setTimeout(r, 800));
-  
-  const { users, profiles } = getDb();
-  
-  if (users.find((u: User) => u.email === email)) {
-    throw new Error("User already exists");
-  }
-
-  const newUser: User = {
-    id: Date.now().toString(),
+  const { data, error } = await supabase.auth.signUp({
     email,
-    password, // Note: In production, hash this!
-    name,
-    joinedAt: Date.now(),
-    avatar: `https://api.dicebear.com/7.x/notionists/svg?seed=${name}`
+    password,
+    options: {
+      data: { full_name: name },
+      emailRedirectTo: window.location.origin
+    }
+  });
+
+  if (error) throw new Error(error.message);
+  if (!data.user) throw new Error("Registration failed");
+
+  const user = mapUser(data.user);
+  const profile: UserProfile = {
+      userId: user.id,
+      level: 1, 
+      xp: 0, 
+      likedProblemIds: [], 
+      visualHistory: [], 
+      gameHighScores: {}, 
+      submissions: [] 
   };
 
-  const newProfile = initProfile(newUser.id);
-  
-  users.push(newUser);
-  profiles[newUser.id] = newProfile;
-  
-  saveDb(users, profiles);
-  localStorage.setItem(SESSION_KEY, newUser.id);
-  
-  return { user: newUser, profile: newProfile };
-};
-
-export const logoutUser = () => {
-  localStorage.removeItem(SESSION_KEY);
-};
-
-export const restoreSession = (): {user: User, profile: UserProfile} | null => {
-  const userId = localStorage.getItem(SESSION_KEY);
-  if (!userId) return null;
-  
-  const { users, profiles } = getDb();
-  const user = users.find((u: User) => u.id === userId);
-  const profile = profiles[userId];
-  
-  if (!user || !profile) {
-    logoutUser();
-    return null;
-  }
-  
   return { user, profile };
 };
 
-// --- Profile Management ---
+export const loginUser = async (email: string, password: string): Promise<{user: User, profile: UserProfile}> => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
 
-const initProfile = (userId: string): UserProfile => ({
-  userId,
-  level: 1,
-  xp: 0,
-  likedProblemIds: [],
-  visualHistory: [],
-  gameHighScores: {},
-  submissions: []
-});
+  if (error) throw new Error(error.message);
+  if (!data.user) throw new Error("Login failed");
 
-export const updateUserProfile = (userId: string, updates: Partial<UserProfile>): UserProfile => {
-  const { users, profiles } = getDb();
-  const currentProfile = profiles[userId] || initProfile(userId);
-  
-  const updatedProfile = { ...currentProfile, ...updates };
-  profiles[userId] = updatedProfile;
-  
-  saveDb(users, profiles);
-  return updatedProfile;
+  const profile = await fetchFullProfile(data.user.id);
+  return { user: mapUser(data.user), profile };
 };
 
-// --- Helper Actions ---
+export const logoutUser = async () => {
+  await supabase.auth.signOut();
+};
 
-export const toggleLikeProblem = (userId: string, problemId: string): UserProfile => {
-  const { profiles, users } = getDb();
-  const profile = profiles[userId];
-  if (!profile) throw new Error("Profile not found");
-  
-  const likes = new Set(profile.likedProblemIds);
-  if (likes.has(problemId)) {
-    likes.delete(problemId);
-  } else {
-    likes.add(problemId);
+export const restoreSession = async (): Promise<{user: User, profile: UserProfile} | null> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return null;
+
+  try {
+      const profile = await fetchFullProfile(session.user.id);
+      return { user: mapUser(session.user), profile };
+  } catch (e) {
+      console.error("Failed to restore profile", e);
+      return null;
   }
-  
-  profile.likedProblemIds = Array.from(likes);
-  profiles[userId] = profile;
-  saveDb(users, profiles);
-  return profile;
 };
 
-export const saveVisualGeneration = (userId: string, item: VisualHistoryItem): UserProfile => {
-  const { profiles, users } = getDb();
-  const profile = profiles[userId];
-  if (!profile) return initProfile(userId); // Fallback
+// --- Data Fetching ---
+
+const fetchFullProfile = async (userId: string): Promise<UserProfile> => {
+  // Parallel fetch for performance
+  const [profileRes, subRes, visRes] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+      supabase.from('submissions').select('*').eq('user_id', userId),
+      supabase.from('visual_history').select('*').eq('user_id', userId).order('created_at', { ascending: false })
+  ]);
+
+  if (profileRes.error) console.error("Profile Fetch Error", profileRes.error);
   
-  profile.visualHistory = [item, ...profile.visualHistory];
+  // If profile is missing (race condition), stub it
+  const profileData = profileRes.data || { id: userId, level: 1, xp: 0, liked_problem_ids: [], game_high_scores: {} };
+
+  return mapProfile(
+      profileData, 
+      subRes.data || [], 
+      visRes.data || []
+  );
+};
+
+// --- Actions (Write to DB) ---
+
+// Helper: Optimistic updates allow the UI to function even if DB writes fail due to RLS policies
+const getOptimisticProfile = async (userId: string): Promise<UserProfile> => {
+    return await fetchFullProfile(userId);
+};
+
+export const toggleLikeProblem = async (userId: string, problemId: string): Promise<UserProfile> => {
+  // 1. Get current state from DB or fresh fetch to be safe
+  let currentProfile = await fetchFullProfile(userId);
+  let likes = new Set<string>(currentProfile.likedProblemIds);
+
+  if (likes.has(problemId)) likes.delete(problemId);
+  else likes.add(problemId);
+
+  const updatedLikes = Array.from(likes);
+
+  // 2. Update DB using UPDATE (not upsert) to avoid RLS INSERT violations
+  const { error } = await supabase.from('profiles').update({ liked_problem_ids: updatedLikes }).eq('id', userId);
   
-  // Award XP for creativity
-  profile.xp += 10;
-  if (profile.xp >= profile.level * 100) {
-      profile.level += 1;
-      profile.xp = profile.xp - (profile.level - 1) * 100;
+  if (error) {
+      console.error("Failed to toggle like (DB):", error);
+      // Optimistic Return: Return the modified state so the UI updates regardless of DB error
+      return { ...currentProfile, likedProblemIds: updatedLikes };
   }
 
-  profiles[userId] = profile;
-  saveDb(users, profiles);
-  return profile;
+  // 3. Return updated full profile from DB
+  return fetchFullProfile(userId);
 };
 
-export const saveGameScore = (userId: string, game: string, score: number): UserProfile => {
-  const { profiles, users } = getDb();
-  const profile = profiles[userId];
-  if (!profile) return initProfile(userId);
+export const saveVisualGeneration = async (userId: string, item: VisualHistoryItem): Promise<UserProfile> => {
+  // 1. Insert into table
+  const { error: insertError } = await supabase.from('visual_history').insert({
+      user_id: userId,
+      type: item.type,
+      mode: item.mode,
+      prompt: item.prompt,
+      media_url: item.mediaUrl,
+      explanation: item.explanation
+  });
 
-  const currentHigh = profile.gameHighScores[game] || 0;
+  if (insertError) {
+      console.error("Failed to save visual history (DB):", insertError);
+      // Don't throw, proceed to try updating XP or just return optimistic state
+  }
+
+  // 2. Award XP
+  const { data: profile } = await supabase.from('profiles').select('xp, level').eq('id', userId).maybeSingle();
+  let xp = 0, level = 1;
+  
+  if (profile) {
+      xp = (profile.xp || 0) + 10;
+      level = profile.level || 1;
+      if (xp >= level * 100) {
+          level++;
+          xp = xp - ((level - 1) * 100);
+      }
+      // Use UPDATE instead of UPSERT
+      await supabase.from('profiles').update({ xp, level }).eq('id', userId);
+  }
+
+  // 3. Return Optimistic Result
+  // We fetch the profile. If the insert failed (e.g. due to RLS), the item won't be in the DB.
+  // We MUST manually append it to the returned profile so the UI shows it for this session.
+  const freshProfile = await fetchFullProfile(userId);
+  
+  // Check if item is present. If not (insert failed), add it manually.
+  const exists = freshProfile.visualHistory.some(h => h.timestamp === item.timestamp);
+  if (!exists) {
+      return {
+          ...freshProfile,
+          // Optimistically update XP/Level if we calculated them
+          xp: xp || freshProfile.xp,
+          level: level || freshProfile.level,
+          visualHistory: [item, ...freshProfile.visualHistory]
+      };
+  }
+
+  return freshProfile;
+};
+
+export const saveGameScore = async (userId: string, game: string, score: number): Promise<UserProfile> => {
+  const { data: profile } = await supabase.from('profiles').select('game_high_scores, xp, level').eq('id', userId).maybeSingle();
+  
+  const scores = profile?.game_high_scores || {};
+  const currentHigh = scores[game] || 0;
+  
   if (score > currentHigh) {
-    profile.gameHighScores[game] = score;
-    // XP for new high score
-    profile.xp += 20; 
+      scores[game] = score;
+      
+      let xp = (profile?.xp || 0) + 20;
+      let level = profile?.level || 1;
+      
+      if (xp >= level * 100) { level++; xp = xp - (level - 1) * 100; }
+
+      // Use UPDATE
+      const { error } = await supabase.from('profiles').update({ 
+          game_high_scores: scores,
+          xp, 
+          level 
+      }).eq('id', userId);
+      
+      if (error) console.error("Failed to save score:", error);
   }
   
-  profiles[userId] = profile;
-  saveDb(users, profiles);
-  return profile;
+  return fetchFullProfile(userId);
 };
 
-export const saveSubmission = (userId: string, submission: Submission): UserProfile => {
-  const { profiles, users } = getDb();
-  const profile = profiles[userId];
-  if (!profile) return initProfile(userId);
+export const saveSubmission = async (userId: string, submission: Submission): Promise<UserProfile> => {
+  // 1. Save submission
+  const { error: insertError } = await supabase.from('submissions').insert({
+      user_id: userId,
+      problem_id: submission.problemId,
+      code: submission.code,
+      feedback: submission.feedback
+  });
 
-  profile.submissions.push(submission);
+  if (insertError) console.error("Failed to save submission:", insertError);
+
+  // 2. Calculate XP
+  const { data: profile } = await supabase.from('profiles').select('xp, level').eq('id', userId).maybeSingle();
   
-  // XP Logic
-  if (submission.feedback.correctnessScore > 80) {
-      profile.xp += 50; // Big XP for correct solution
-  } else {
-      profile.xp += 5; // Participation XP
+  let xp = (profile?.xp || 0);
+  let level = (profile?.level || 1);
+  
+  if (submission.feedback.correctnessScore > 80) xp += 50;
+  else xp += 5;
+
+  if (xp >= level * 100) { level++; xp = xp - (level - 1) * 100; }
+  
+  // Use UPDATE
+  await supabase.from('profiles').update({ xp, level }).eq('id', userId);
+
+  // Optimistic Return
+  const freshProfile = await fetchFullProfile(userId);
+  const exists = freshProfile.submissions.some(s => s.timestamp === submission.timestamp);
+  
+  if (!exists) {
+      return {
+          ...freshProfile,
+          xp,
+          level,
+          submissions: [submission, ...freshProfile.submissions]
+      };
   }
 
-  // Level Up Logic
-  if (profile.xp >= profile.level * 100) {
-      profile.level += 1;
-      profile.xp = profile.xp - ((profile.level - 1) * 100); 
-  }
-
-  profiles[userId] = profile;
-  saveDb(users, profiles);
-  return profile;
+  return freshProfile;
 };
 
-export const saveUserPlan = (userId: string, plan: PrepPlan): UserProfile => {
-    const { profiles, users } = getDb();
-    const profile = profiles[userId];
-    if (!profile) return initProfile(userId);
-    
-    profile.currentPlan = plan;
-    profiles[userId] = profile;
-    saveDb(users, profiles);
-    return profile;
-}
+export const saveUserPlan = async (userId: string, plan: PrepPlan): Promise<UserProfile> => {
+  // Use UPDATE
+  const { error } = await supabase.from('profiles').update({ current_plan: plan }).eq('id', userId);
+  
+  if (error) {
+      console.error("Failed to save plan:", error);
+      const current = await fetchFullProfile(userId);
+      return { ...current, currentPlan: plan }; // Optimistic return
+  }
+  
+  return fetchFullProfile(userId);
+};

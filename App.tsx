@@ -127,14 +127,17 @@ const App: React.FC = () => {
 
   // Initialize Session
   useEffect(() => {
-      const session = restoreSession();
-      if (session) {
-          setUser(session.user);
-          setUserProfile(session.profile);
-          setView(session.profile.currentPlan ? AppView.DASHBOARD : AppView.SETUP);
-          setShowWelcome(false);
-          setTheme('midnight'); // Default theme if restored
-      }
+      const initSession = async () => {
+          const session = await restoreSession();
+          if (session) {
+              setUser(session.user);
+              setUserProfile(session.profile);
+              setView(session.profile.currentPlan ? AppView.DASHBOARD : AppView.SETUP);
+              setShowWelcome(false);
+              setTheme('midnight'); // Default theme if restored
+          }
+      };
+      initSession();
   }, []);
 
   // Update CSS Variables
@@ -159,17 +162,17 @@ const App: React.FC = () => {
       setView(p.currentPlan ? AppView.DASHBOARD : AppView.SETUP);
   };
 
-  const handleLogout = () => {
-      logoutUser();
+  const handleLogout = async () => {
+      await logoutUser();
       setUser(null);
       setUserProfile(null);
       setView(AppView.AUTH);
       setShowWelcome(true);
   };
 
-  const handlePlanGenerated = (newPlan: PrepPlan) => {
+  const handlePlanGenerated = async (newPlan: PrepPlan) => {
     if (user) {
-        const updated = saveUserPlan(user.id, newPlan);
+        const updated = await saveUserPlan(user.id, newPlan);
         setUserProfile(updated);
     }
     setView(AppView.DASHBOARD);
@@ -184,31 +187,31 @@ const App: React.FC = () => {
     setView(AppView.PROBLEM_SOLVER);
   };
 
-  const handleSubmitSuccess = (problemId: string, code: string, feedback: CodeFeedback) => {
+  const handleSubmitSuccess = async (problemId: string, code: string, feedback: CodeFeedback) => {
     if (user) {
         const submission: Submission = { problemId, code, feedback, timestamp: Date.now() };
-        const updated = saveSubmission(user.id, submission);
+        const updated = await saveSubmission(user.id, submission);
         setUserProfile(updated);
     }
   };
 
-  const handleAddToHistory = (item: VisualHistoryItem) => {
+  const handleAddToHistory = async (item: VisualHistoryItem) => {
       if (user) {
-          const updated = saveVisualGeneration(user.id, item);
+          const updated = await saveVisualGeneration(user.id, item);
           setUserProfile(updated);
       }
   };
   
-  const handleLikeProblem = (problemId: string) => {
+  const handleLikeProblem = async (problemId: string) => {
       if (user) {
-          const updated = toggleLikeProblem(user.id, problemId);
+          const updated = await toggleLikeProblem(user.id, problemId);
           setUserProfile(updated);
       }
   };
 
-  const handleSaveScore = (game: string, score: number) => {
+  const handleSaveScore = async (game: string, score: number) => {
       if (user) {
-          const updated = saveGameScore(user.id, game, score);
+          const updated = await saveGameScore(user.id, game, score);
           setUserProfile(updated);
       }
   };
