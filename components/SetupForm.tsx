@@ -19,9 +19,19 @@ const SetupForm: React.FC<Props> = ({ onPlanGenerated, onSkipToLibrary }) => {
     try {
       const plan = await generateStudyPlan(jobDesc, topics, date);
       onPlanGenerated(plan);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Failed to generate plan. Please check your inputs and try again.');
+      
+      let message = 'Failed to generate plan. Please try again.';
+      if (error.message?.includes("503") || error.message?.includes("overloaded")) {
+          message = "The AI server is currently busy due to high demand. We've tried retrying, but it's still overloaded. Please wait a minute and try again.";
+      } else if (error.message?.includes("429")) {
+          message = "You've reached the AI rate limit. Please take a short break and try again in a few minutes.";
+      } else if (error.message?.includes("API_KEY")) {
+          message = "There is an issue with the AI configuration (API Key). Please contact support.";
+      }
+      
+      alert(message);
     } finally {
       setLoading(false);
     }
@@ -85,7 +95,7 @@ const SetupForm: React.FC<Props> = ({ onPlanGenerated, onSkipToLibrary }) => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Generating Personal Plan...
+                Trying to reach AI...
                 </span>
             ) : (
                 'Generate Preparation Plan'

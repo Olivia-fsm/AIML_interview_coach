@@ -21,7 +21,7 @@ import FlowerBackground from './components/FlowerBackground';
 import SnowBackground from './components/SnowBackground';
 import GothicBackground from './components/GothicBackground';
 import ChristmasBackground from './components/ChristmasBackground';
-import { restoreSession, saveSubmission, saveUserPlan, saveVisualGeneration, toggleLikeProblem, logoutUser, saveGameScore } from './services/userService';
+import { restoreSession, saveSubmission, saveUserPlan, saveVisualGeneration, toggleLikeProblem, logoutUser, saveGameScore, clearUserPlan } from './services/userService';
 
 const THEME_CONFIG: Record<ThemeId, ThemeColors> = {
   midnight: {
@@ -143,10 +143,7 @@ const App: React.FC = () => {
               setUser(session.user);
               setUserProfile(session.profile);
               setView(session.profile.currentPlan ? AppView.DASHBOARD : AppView.SETUP);
-              // FIXED: Do not auto-hide welcome page to prevent "jumping" effect.
-              // User must manually click "Start" to enter, even if session is restored.
-              // setShowWelcome(false); 
-              setTheme('midnight'); // Default theme if restored
+              setTheme('midnight'); 
           }
       };
       initSession();
@@ -180,6 +177,23 @@ const App: React.FC = () => {
       setUserProfile(null);
       setView(AppView.AUTH);
       setShowWelcome(true);
+  };
+
+  const handleEndPlan = async () => {
+    console.log("App: handleEndPlan action executing");
+    if (!user || !userProfile) return;
+    
+    // Perform optimistic update immediately
+    // Confirmation is now handled in PlanDashboard component to avoid window.confirm issues
+    setUserProfile(prev => prev ? ({ ...prev, currentPlan: undefined }) : null);
+    setView(AppView.SETUP);
+
+    try {
+      await clearUserPlan(user.id);
+      console.log("App: Plan cleared on backend successfully.");
+    } catch (err) {
+      console.error("App: Backend clear plan failed:", err);
+    }
   };
 
   const handlePlanGenerated = async (newPlan: PrepPlan) => {
@@ -276,7 +290,7 @@ const App: React.FC = () => {
       
       {/* Sidebar Navigation */}
       {view !== AppView.SETUP && (
-        <aside className="w-64 bg-panel-bg border-r border-border-col flex flex-col fixed h-full z-10 transition-colors duration-300 backdrop-blur-md">
+        <aside className="w-64 bg-panel-bg border-r border-border-col flex flex-col fixed h-full z-[100] transition-colors duration-300 backdrop-blur-md">
           <div className="p-6 border-b border-border-col flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-pink-500/20">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -290,7 +304,7 @@ const App: React.FC = () => {
                 <p className="text-[10px] text-text-muted uppercase tracking-widest">Logged in as {user.name.split(' ')[0]}</p>
             </div>
           </div>
-          <nav className="flex-1 p-4 space-y-2">
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             {navItems.map((item) => (
               <button
                 key={item.id}
@@ -309,9 +323,9 @@ const App: React.FC = () => {
           <div className="p-4 border-t border-border-col">
              <div className="bg-card-bg rounded-lg p-3 text-xs text-text-muted border border-border-col">
                 <p className="mb-2 flex justify-between">Theme: <span className="uppercase font-bold">{theme}</span></p>
-                <div className="flex justify-between mt-2">
-                    <button onClick={() => setTheme(null)} className="underline hover:text-primary">Change Theme</button>
-                    <button onClick={handleLogout} className="text-red-400 hover:text-red300">Logout</button>
+                <div className="flex flex-col gap-2 mt-2">
+                    <button type="button" onClick={() => setTheme(null)} className="text-left underline hover:text-primary">Change Theme</button>
+                    <button type="button" onClick={handleLogout} className="text-left text-red-400 hover:text-red-300 py-1">Logout</button>
                 </div>
              </div>
           </div>
@@ -333,8 +347,14 @@ const App: React.FC = () => {
         )}
 
         {view !== AppView.SETUP && (
-            <div className="flex-1 bg-app-bg overflow-hidden transition-colors duration-300">
-                {view === AppView.DASHBOARD && userProfile.currentPlan && <PlanDashboard plan={userProfile.currentPlan} submissions={userProfile.submissions} />}
+            <div className="flex-1 bg-app-bg overflow-hidden transition-colors duration-300 relative z-20">
+                {view === AppView.DASHBOARD && userProfile.currentPlan && (
+                  <PlanDashboard 
+                    plan={userProfile.currentPlan} 
+                    submissions={userProfile.submissions} 
+                    onEndPlan={handleEndPlan}
+                  />
+                )}
                 {view === AppView.PROBLEM_BANK && <ProblemBank onSelectProblem={handleSelectProblem} submissions={userProfile.submissions} />}
                 {view === AppView.PROBLEM_SOLVER && activeProblem && (
                     <ProblemSolver 

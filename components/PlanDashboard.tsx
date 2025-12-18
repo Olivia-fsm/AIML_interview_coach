@@ -1,13 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PrepPlan, Submission } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 
 interface Props {
   plan: PrepPlan;
   submissions: Submission[];
+  onEndPlan: () => void;
 }
 
-const PlanDashboard: React.FC<Props> = ({ plan, submissions }) => {
+const PlanDashboard: React.FC<Props> = ({ plan, submissions, onEndPlan }) => {
+  const [isMounted, setIsMounted] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  // Guard against Recharts calculation errors on initial mount
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Plan Chart Data
   const scheduleData = (plan.schedule || []).map(d => ({
     name: `Day ${d.day}`,
@@ -16,27 +25,27 @@ const PlanDashboard: React.FC<Props> = ({ plan, submissions }) => {
   }));
 
   // Progress Data
-  const solvedCount = submissions.filter(s => s.feedback.correctnessScore > 80).length;
+  const solvedCount = submissions.filter(s => s.feedback && s.feedback.correctnessScore > 80).length;
   const avgScore = submissions.length > 0 
-    ? Math.round(submissions.reduce((acc, curr) => acc + curr.feedback.correctnessScore, 0) / submissions.length)
+    ? Math.round(submissions.reduce((acc, curr) => acc + (curr.feedback?.correctnessScore || 0), 0) / submissions.length)
     : 0;
   
   const pieData = [
       { name: 'Solved', value: solvedCount },
-      { name: 'Remaining', value: 15 - solvedCount } // Assuming ~15 problems in library for demo
+      { name: 'Remaining', value: Math.max(0, 15 - solvedCount) }
   ];
-  const COLORS = ['var(--col-primary)', 'var(--bg-card)'];
+  const COLORS = ['var(--col-primary)', 'rgba(255, 255, 255, 0.05)'];
 
   return (
-    <div className="p-6 space-y-8 animate-fade-in h-full overflow-y-auto">
+    <div className="p-6 space-y-8 animate-fade-in h-full overflow-y-auto custom-scrollbar">
       {/* Header */}
       <div className="bg-panel-bg p-6 rounded-2xl border border-border-col shadow-lg">
-        <div className="flex justify-between items-start">
-            <div>
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+            <div className="flex-1">
                 <h2 className="text-3xl font-bold text-text-main mb-2">{plan.roleTitle}</h2>
                 <p className="text-primary font-medium text-lg">Target: {plan.targetCompany}</p>
             </div>
-            <div className="text-right">
+            <div className="md:text-right">
                 <p className="text-sm text-text-muted">Interview Date</p>
                 <p className="text-xl font-bold text-text-main">{plan.interviewDate}</p>
             </div>
@@ -70,7 +79,7 @@ const PlanDashboard: React.FC<Props> = ({ plan, submissions }) => {
                   ))
                 ) : (
                   <div className="text-text-muted p-4 border border-dashed border-border-col rounded-xl text-center">
-                    No schedule generated. Please regenerate your plan.
+                    No schedule generated.
                   </div>
                 )}
             </div>
@@ -78,26 +87,28 @@ const PlanDashboard: React.FC<Props> = ({ plan, submissions }) => {
 
         {/* Right Column: Analytics */}
         <div className="space-y-6">
-            
             {/* Progress Card */}
             <div className="bg-panel-bg p-5 rounded-xl border border-border-col">
                 <h3 className="text-lg font-semibold text-text-main mb-4">Coding Progress</h3>
-                <div className="h-48 w-full flex items-center justify-center relative">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <Pie
-                                data={pieData}
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                            >
-                                {pieData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none"/>
-                                ))}
-                            </Pie>
-                        </PieChart>
-                    </ResponsiveContainer>
+                <div style={{ width: '100%', height: '240px', position: 'relative' }}>
+                    {isMounted && (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={pieData}
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                    isAnimationActive={false}
+                                >
+                                    {pieData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none"/>
+                                    ))}
+                                </Pie>
+                            </PieChart>
+                        </ResponsiveContainer>
+                    )}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                         <span className="text-3xl font-bold text-text-main">{solvedCount}</span>
                         <span className="text-xs text-text-muted">Solved</span>
@@ -118,21 +129,23 @@ const PlanDashboard: React.FC<Props> = ({ plan, submissions }) => {
             {/* Load Chart */}
             <div className="bg-panel-bg p-5 rounded-xl border border-border-col">
                 <h3 className="text-lg font-semibold text-text-main mb-4">Study Load</h3>
-                <div className="h-40 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={scheduleData}>
-                            <XAxis dataKey="name" hide />
-                            <Tooltip 
-                                contentStyle={{ backgroundColor: 'var(--bg-panel)', border: '1px solid var(--border-col)', color: 'var(--text-main)' }}
-                                cursor={{fill: 'var(--bg-card)'}}
-                            />
-                            <Bar dataKey="tasks" fill="var(--col-primary)" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                <div style={{ width: '100%', height: '180px' }}>
+                    {isMounted && (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={scheduleData}>
+                                <XAxis dataKey="name" hide />
+                                <Tooltip 
+                                    contentStyle={{ backgroundColor: 'var(--bg-panel)', border: '1px solid var(--border-col)', color: 'var(--text-main)' }}
+                                    cursor={{fill: 'var(--bg-card)'}}
+                                />
+                                <Bar dataKey="tasks" fill="var(--col-primary)" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
                 </div>
             </div>
 
-             <div className="bg-gradient-to-br from-indigo-900 to-purple-900 p-5 rounded-xl border border-indigo-700 text-center">
+             <div className="bg-gradient-to-br from-indigo-900/40 to-purple-900/40 p-5 rounded-xl border border-indigo-700/30 text-center">
                 <h3 className="text-lg font-bold text-white mb-2">Mock Interview</h3>
                 <p className="text-sm text-indigo-200 mb-4">Test your verbal skills with the Live API.</p>
                 <div className="inline-block px-4 py-2 bg-white/10 rounded-lg text-xs font-mono text-white">
@@ -140,6 +153,52 @@ const PlanDashboard: React.FC<Props> = ({ plan, submissions }) => {
                 </div>
             </div>
         </div>
+      </div>
+
+      {/* FOOTER: End Plan Section */}
+      <div className="pt-10 pb-20 flex flex-col items-center">
+          <div className="w-full max-w-lg p-8 bg-panel-bg border border-dashed border-border-col rounded-3xl text-center">
+              <h3 className="text-xl font-bold text-text-main mb-2">Ready for a new direction?</h3>
+              <p className="text-text-muted text-sm mb-6">
+                  Ending this plan will return you to the setup page. You'll keep your XP and solving history, but the current daily schedule will be cleared.
+              </p>
+              
+              {!showConfirm ? (
+                <button 
+                  type="button"
+                  onClick={() => setShowConfirm(true)}
+                  className="group px-8 py-4 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-2xl font-bold transition-all flex items-center gap-3 mx-auto shadow-lg active:scale-95"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  End Current Plan
+                </button>
+              ) : (
+                <div className="flex flex-col gap-4 animate-fade-in">
+                  <p className="text-red-400 font-bold text-sm">Are you absolutely sure?</p>
+                  <div className="flex justify-center gap-4">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        console.log("End Plan confirmed in UI");
+                        onEndPlan();
+                      }}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-all shadow-lg active:scale-95"
+                    >
+                      Yes, Restart Route
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setShowConfirm(false)}
+                      className="px-6 py-3 bg-card-bg hover:bg-border-col text-text-main rounded-xl font-bold border border-border-col transition-all active:scale-95"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+          </div>
       </div>
     </div>
   );

@@ -46,6 +46,7 @@ const mapProfile = (sbProfile: any, sbSubmissions: any[], sbVisuals: any[]): Use
     type: v.type,
     mode: v.mode,
     prompt: v.prompt,
+    // Fix: Using camelCase mediaUrl to match VisualHistoryItem interface
     mediaUrl: v.media_url,
     explanation: v.explanation,
     timestamp: new Date(v.created_at).getTime()
@@ -295,5 +296,14 @@ export const saveUserPlan = async (userId: string, plan: PrepPlan): Promise<User
       return { ...current, currentPlan: plan }; // Optimistic return
   }
   
+  return fetchFullProfile(userId);
+};
+
+export const clearUserPlan = async (userId: string): Promise<UserProfile> => {
+  const { error } = await supabase.from('profiles').update({ current_plan: null }).eq('id', userId);
+  if (error) {
+    console.error("Failed to clear plan:", error);
+    throw error;
+  }
   return fetchFullProfile(userId);
 };

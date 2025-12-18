@@ -8,24 +8,40 @@ import {
 } from "@google/genai";
 import { PrepPlan, CodeFeedback, InterviewTurn, InterviewReport, TestCaseResult, JobPosting } from "../types";
 
-// Helper to get API client
+// Helper to get API client - strictly uses environment variable API_KEY in named parameter object
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key not found");
-  }
-  return new GoogleGenAI({ apiKey });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
+
+/**
+ * Helper: Exponential Backoff Retry Wrapper
+ * Retries the provided function if it fails with a 503 (Overloaded) or 429 (Rate Limit) error.
+ */
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
+  try {
+    return await fn();
+  } catch (error: any) {
+    const isRetryable = error.message?.includes("503") || 
+                        error.message?.includes("overloaded") || 
+                        error.message?.includes("429") ||
+                        error.message?.includes("rate limit");
+
+    if (retries > 0 && isRetryable) {
+      console.warn(`Gemini API busy. Retrying in ${delay}ms... (${retries} retries left)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return withRetry(fn, retries - 1, delay * 2);
+    }
+    throw error;
+  }
+}
 
 // --- Helper: Robust JSON Parser ---
 const parseGeminiJson = <T>(text: string): T => {
     try {
-        // Try extracting from markdown code blocks first
         const match = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/);
         if (match) {
             return JSON.parse(match[1]);
         }
-        // Try parsing the raw text
         return JSON.parse(text);
     } catch (e) {
         console.error("JSON Parse failed for text:", text);
@@ -35,60 +51,53 @@ const parseGeminiJson = <T>(text: string): T => {
 
 // --- Helper: Domain Validation & Prompt Refinement ---
 const validateAndRefinePrompt = async (userPrompt: string, targetType: 'image' | 'video'): Promise<{isValid: boolean, refusalReason?: string, lectureNotes: string, visualPrompt: string}> => {
-  const ai = getAiClient();
-  const metaPrompt = `
-    You are an AI/ML education supervisor.
-    User Query: "${userPrompt}"
-    Target Media: ${targetType}
-    
-    Task:
-    1. VALIDATION: Determine if the query is related to AI, Machine Learning, Data Science, Math, Algorithms, System Design, or Coding.
-       - If unrelated (e.g., "cute cats", "landscape", "celebrity"), REJECT.
-       - If it is an educational visualization or metaphor for tech (e.g. "robot neural network"), ACCEPT.
-    
-    2. EXPLANATION: Write concise "Lecture Notes" (Markdown) explaining the technical concept.
-       - Define the term.
-       - Key properties/formulas if applicable.
-       - Max 150 words.
-    
-    3. VISUAL_PROMPT: Write an optimized prompt for ${targetType} generation.
-       - For diagrams: "High quality technical diagram of [concept], whiteboard style, clear labels, schematic".
-       - For abstract concepts: "Abstract visualization of [concept], data flowing, nodes connecting, high tech, 4k".
-    
-    Return strict JSON:
-    {
-      "isValid": boolean,
-      "refusalReason": string (if invalid),
-      "lectureNotes": string,
-      "visualPrompt": string
-    }
-  `;
+  return withRetry(async () => {
+    const ai = getAiClient();
+    const metaPrompt = `
+      You are an AI/ML education supervisor.
+      User Query: "${userPrompt}"
+      Target Media: ${targetType}
+      
+      Task:
+      1. VALIDATION: Determine if the query is related to AI, Machine Learning, Data Science, Math, Algorithms, System Design, or Coding.
+      2. EXPLANATION: Write concise "Lecture Notes" (Markdown) explaining the technical concept.
+      3. VISUAL_PROMPT: Write an optimized prompt for ${targetType} generation.
+      
+      Return strict JSON:
+      {
+        "isValid": boolean,
+        "refusalReason": string,
+        "lectureNotes": string,
+        "visualPrompt": string
+      }
+    `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: metaPrompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          isValid: { type: Type.BOOLEAN },
-          refusalReason: { type: Type.STRING },
-          lectureNotes: { type: Type.STRING },
-          visualPrompt: { type: Type.STRING }
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview", // Updated to gemini-3 series for basic text tasks
+      contents: metaPrompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            isValid: { type: Type.BOOLEAN },
+            refusalReason: { type: Type.STRING },
+            lectureNotes: { type: Type.STRING },
+            visualPrompt: { type: Type.STRING }
+          }
         }
       }
-    }
-  });
+    });
 
-  if (!response.text) throw new Error("Validation failed");
-  const result = JSON.parse(response.text);
-  
-  if (!result.isValid) {
-      throw new Error(`Content Blocked: ${result.refusalReason || "Topic is unrelated to Machine Learning curriculum."}`);
-  }
-  
-  return result;
+    if (!response.text) throw new Error("Validation failed");
+    const result = JSON.parse(response.text);
+    
+    if (!result.isValid) {
+        throw new Error(`Content Blocked: ${result.refusalReason || "Topic is unrelated to Machine Learning curriculum."}`);
+    }
+    
+    return result;
+  });
 };
 
 // --- Code Evaluation ---
@@ -97,59 +106,47 @@ export const evaluateCodeSubmission = async (
   problemDesc: string,
   userCode: string
 ): Promise<CodeFeedback> => {
-  const ai = getAiClient();
-  const prompt = `
-    You are a Senior Machine Learning Engineer interviewing a candidate.
-    
-    Problem: ${problemTitle}
-    Description: ${problemDesc}
-    
-    Candidate Code:
-    ${userCode}
-    
-    Analyze the code for:
-    1. Correctness (Does it solve the math/logic correctly?)
-    2. Efficiency (Time/Space complexity, vectorization usage)
-    3. Style (Pythonic conventions, variable naming)
-    
-    Return the result in strict JSON format.
-  `;
+  return withRetry(async () => {
+    const ai = getAiClient();
+    const prompt = `
+      You are a Senior Machine Learning Engineer interviewing a candidate.
+      Problem: ${problemTitle}
+      Description: ${problemDesc}
+      Candidate Code: ${userCode}
+      Analyze for Correctness, Efficiency, and Style.
+    `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          correctnessScore: { type: Type.INTEGER, description: "Score from 0 to 100" },
-          isCorrect: { type: Type.BOOLEAN },
-          timeComplexity: { type: Type.STRING },
-          spaceComplexity: { type: Type.STRING },
-          analysis: { type: Type.STRING, description: "Brief paragraph analyzing the approach." },
-          improvements: { 
-            type: Type.ARRAY, 
-            items: { type: Type.STRING },
-            description: "List of 1-3 specific improvements." 
+    const response = await ai.models.generateContent({
+      model: "gemini-3-pro-preview", // Updated to gemini-3 series for complex coding analysis
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            correctnessScore: { type: Type.INTEGER },
+            isCorrect: { type: Type.BOOLEAN },
+            timeComplexity: { type: Type.STRING },
+            spaceComplexity: { type: Type.STRING },
+            analysis: { type: Type.STRING },
+            improvements: { type: Type.ARRAY, items: { type: Type.STRING } }
           }
         }
       }
-    }
+    });
+
+    if (!response.text) throw new Error("Analysis failed");
+    const parsed = parseGeminiJson<any>(response.text);
+
+    return {
+      correctnessScore: typeof parsed.correctnessScore === 'number' ? parsed.correctnessScore : 0,
+      isCorrect: !!parsed.isCorrect,
+      timeComplexity: String(parsed.timeComplexity || '?'),
+      spaceComplexity: String(parsed.spaceComplexity || '?'),
+      analysis: String(parsed.analysis || "No analysis provided."),
+      improvements: Array.isArray(parsed.improvements) ? parsed.improvements.map((i: any) => String(i)) : []
+    };
   });
-
-  if (!response.text) throw new Error("Analysis failed");
-  const parsed = parseGeminiJson<any>(response.text);
-
-  // Strict sanitization to prevent UI crashes
-  return {
-    correctnessScore: typeof parsed.correctnessScore === 'number' ? parsed.correctnessScore : 0,
-    isCorrect: !!parsed.isCorrect,
-    timeComplexity: typeof parsed.timeComplexity === 'string' ? parsed.timeComplexity : String(parsed.timeComplexity || '?'),
-    spaceComplexity: typeof parsed.spaceComplexity === 'string' ? parsed.spaceComplexity : String(parsed.spaceComplexity || '?'),
-    analysis: typeof parsed.analysis === 'string' ? parsed.analysis : JSON.stringify(parsed.analysis || "No analysis provided."),
-    improvements: Array.isArray(parsed.improvements) ? parsed.improvements.map((i: any) => String(i)) : []
-  };
 };
 
 // --- Run Test Cases ---
@@ -159,193 +156,40 @@ export const runCodeAgainstTests = async (
   problemTitle: string,
   hiddenTestCase?: { input: string; output: string }
 ): Promise<TestCaseResult[]> => {
-  const ai = getAiClient();
-  
-  // Combine all test cases including hidden one
-  const allTests = hiddenTestCase ? [...testCases, { ...hiddenTestCase, isHidden: true }] : testCases;
-  const testCasesStr = JSON.stringify(allTests);
-  
-  const prompt = `
-    You are a Python execution engine.
+  return withRetry(async () => {
+    const ai = getAiClient();
+    const allTests = hiddenTestCase ? [...testCases, { ...hiddenTestCase, isHidden: true }] : testCases;
+    const testCasesStr = JSON.stringify(allTests);
     
-    Problem: ${problemTitle}
-    
-    Code provided by user:
-    ${code}
+    const prompt = `
+      You are a Python execution engine.
+      Problem: ${problemTitle}
+      Code: ${code}
+      Test Cases: ${testCasesStr}
+      Execute and return result in JSON format: [{"actual": string, "passed": boolean, "logs": string}]
+    `;
 
-    Test Cases (JSON):
-    ${testCasesStr}
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview", // Using flash for code execution/verification
+      contents: prompt,
+      config: { tools: [{ codeExecution: {} }] }
+    });
 
-    Task:
-    1. Write a Python script that defines the user's function.
-    2. The script must parse the 'input' string from each test case into actual Python variables.
-       - IMPORTANT: The input string (e.g., "X=[[1,2]], y=[1]") contains Python list literals. 
-       - If the user's code imports 'numpy' or uses matrix operations, you MUST convert these parsed lists into 'numpy.array' before passing them to the function.
-    3. Execute the function with these arguments.
-    4. Print the "actual" result for each test case.
-    5. Compare the actual result with the expected output (semantically). 
-       - For numpy arrays, use 'np.allclose' or string comparison of formatted arrays.
-    6. After the code execution block, output the results as a JSON array.
-    
-    Output Format:
-    Return ONLY a JSON block wrapped in \`\`\`json\`\`\` containing an array of objects:
-    [
-      {
-        "actual": "string representation of return value",
-        "passed": boolean (true if actual matches expected logic),
-        "logs": "any print outputs or errors"
-      }
-    ]
-  `;
+    const text = response.text || "";
+    let aiResults = parseGeminiJson<any[]>(text);
 
-  // Note: We do NOT use responseSchema here because it conflicts with the CodeExecution tool's
-  // internal output generation steps in some cases. We parse the JSON manually.
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: {
-      tools: [{ codeExecution: {} }]
-    }
+    return allTests.map((tc, index) => {
+        const res = aiResults[index] || { actual: "Execution failed", passed: false, logs: "No output" };
+        return {
+            input: tc.input,
+            expected: tc.output,
+            actual: typeof res.actual === 'object' ? JSON.stringify(res.actual) : String(res.actual || "No output"),
+            passed: !!res.passed,
+            logs: typeof res.logs === 'object' ? JSON.stringify(res.logs) : String(res.logs || ""),
+            isHidden: (tc as any).isHidden
+        };
+    });
   });
-
-  const text = response.text || "";
-  let aiResults: any[] = [];
-  
-  try {
-      aiResults = parseGeminiJson(text);
-  } catch (e) {
-      console.warn("Using fallback parsing for test results");
-      // Fallback: Try to find any list in the text
-      const match = text.match(/\[\s*\{[\s\S]*\}\s*\]/);
-      if (match) {
-          try {
-              aiResults = JSON.parse(match[0]);
-          } catch(err) { console.error("Fallback parse failed"); }
-      }
-  }
-
-  // Merge with original test cases to ensure input/expected are correct
-  return allTests.map((tc, index) => {
-      const res = aiResults[index] || { actual: "Execution failed", passed: false, logs: "Could not parse AI output or Code Execution failed." };
-      
-      // CRITICAL FIX: Ensure 'actual' is always a string.
-      // If code execution returns a Python dict/object, Gemini might return it as a JSON object.
-      // React cannot render Objects directly, causing the [object Object] error.
-      let actualVal = res.actual;
-      if (typeof actualVal === 'object' && actualVal !== null) {
-          actualVal = JSON.stringify(actualVal);
-      } else if (actualVal === undefined || actualVal === null) {
-          actualVal = "No output";
-      } else {
-          actualVal = String(actualVal);
-      }
-
-      // CRITICAL FIX: Ensure 'logs' is always a string.
-      let logsVal = res.logs;
-      if (typeof logsVal === 'object' && logsVal !== null) {
-          logsVal = JSON.stringify(logsVal);
-      } else if (logsVal === undefined || logsVal === null) {
-          logsVal = "";
-      } else {
-          logsVal = String(logsVal);
-      }
-
-      return {
-          input: tc.input,
-          expected: tc.output,
-          actual: actualVal,
-          passed: !!res.passed,
-          logs: logsVal,
-          isHidden: (tc as any).isHidden
-      };
-  });
-};
-
-// --- Code Explanation & Verification ---
-export const explainCodeSnippet = async (
-  codeSnippet: string,
-  contextCode: string,
-  problemTitle: string
-): Promise<string> => {
-  const ai = getAiClient();
-  const prompt = `
-    You are an expert Python coding tutor.
-    Problem: ${problemTitle}
-    
-    The user has highlighted the following code snippet to understand it better:
-    \`\`\`python
-    ${codeSnippet}
-    \`\`\`
-    
-    Full Code Context:
-    \`\`\`python
-    ${contextCode}
-    \`\`\`
-    
-    Provide a concise, clear explanation of what this specific snippet does, how it works, and why it is used in this solution.
-  `;
-  
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt
-  });
-  
-  const text = response.text || "Could not generate explanation.";
-  return typeof text === 'string' ? text : JSON.stringify(text);
-};
-
-export const evaluateCodeExplanation = async (
-  codeSnippet: string,
-  userExplanation: string,
-  contextCode: string,
-  problemTitle: string
-): Promise<{ isCorrect: boolean; score: number; feedback: string }> => {
-  const ai = getAiClient();
-  const prompt = `
-    You are an expert coding interviewer evaluating a candidate's understanding.
-    Problem: ${problemTitle}
-    
-    The candidate highlighted this Snippet:
-    \`\`\`python
-    ${codeSnippet}
-    \`\`\`
-    
-    And provided this Explanation:
-    "${userExplanation}"
-    
-    Full Context:
-    \`\`\`python
-    ${contextCode}
-    \`\`\`
-    
-    Evaluate if their explanation is factually correct and demonstrates good understanding.
-    Return JSON.
-  `;
-  
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          isCorrect: { type: Type.BOOLEAN },
-          score: { type: Type.INTEGER, description: "0-100" },
-          feedback: { type: Type.STRING, description: "Constructive feedback on their explanation." }
-        }
-      }
-    }
-  });
-
-  if (!response.text) throw new Error("Verification failed");
-  const parsed = parseGeminiJson<any>(response.text);
-
-  return {
-      isCorrect: !!parsed.isCorrect,
-      score: typeof parsed.score === 'number' ? parsed.score : 0,
-      feedback: typeof parsed.feedback === 'string' ? parsed.feedback : JSON.stringify(parsed.feedback || "")
-  };
 };
 
 // --- Plan Generation ---
@@ -354,380 +198,227 @@ export const generateStudyPlan = async (
   topics: string, 
   interviewDate: string
 ): Promise<PrepPlan> => {
-  const ai = getAiClient();
-  const prompt = `
-    Create a detailed interview preparation plan for an AI/ML role.
+  return withRetry(async () => {
+    const ai = getAiClient();
+    const today = new Date().toISOString().split('T')[0];
     
-    Job Description: ${jobDescription}
-    Interested Topics: ${topics}
-    Interview Date: ${interviewDate}
-    
-    Today is ${new Date().toDateString()}.
-    
-    Generate a day-by-day plan leading up to the interview. 
-    IMPORTANT: If the interview is more than 2 weeks away, generate a condensed plan representing key milestones or a 2-week intensive sprint. Do not generate more than 14 "PlanDay" items to ensure quick response.
-    Focus on coding problems, system design, and ML concepts.
-  `;
+    const prompt = `
+      Create a detailed interview preparation plan for an AI/ML role.
+      TODAY'S DATE: ${today} (Use this as the absolute reference point for all date calculations).
+      
+      Job Description: ${jobDescription}
+      Interested Topics: ${topics}
+      Interview Date Target: ${interviewDate} (If relative like "in 2 weeks", calculate it from TODAY'S DATE: ${today}).
+      
+      Generate a condensed plan (max 14 days). Ensure the 'date' field in the schedule follows the YYYY-MM-DD format based on your calculation.
+    `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          roleTitle: { type: Type.STRING },
-          targetCompany: { type: Type.STRING },
-          interviewDate: { type: Type.STRING },
-          summary: { type: Type.STRING },
-          schedule: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                day: { type: Type.INTEGER },
-                date: { type: Type.STRING },
-                focusArea: { type: Type.STRING },
-                tasks: { type: Type.ARRAY, items: { type: Type.STRING } },
-                resources: { type: Type.ARRAY, items: { type: Type.STRING } },
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview", // Updated to gemini-3 series
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            roleTitle: { type: Type.STRING },
+            targetCompany: { type: Type.STRING },
+            interviewDate: { type: Type.STRING },
+            summary: { type: Type.STRING },
+            schedule: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  day: { type: Type.INTEGER },
+                  date: { type: Type.STRING },
+                  focusArea: { type: Type.STRING },
+                  tasks: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  resources: { type: Type.ARRAY, items: { type: Type.STRING } },
+                }
               }
             }
           }
         }
       }
-    }
-  });
-
-  if (!response.text) throw new Error("No plan generated");
-  
-  try {
-    const parsed = parseGeminiJson<any>(response.text);
-    
-    // Validate and sanitize structure to prevent UI crashes
-    if (!parsed.schedule || !Array.isArray(parsed.schedule)) {
-        parsed.schedule = [];
-    }
-
-    parsed.schedule.forEach((day: any) => {
-        if (!day.tasks || !Array.isArray(day.tasks)) day.tasks = [];
-        if (!day.resources || !Array.isArray(day.resources)) day.resources = [];
-        if (!day.focusArea) day.focusArea = "General Prep";
     });
 
-    if (!parsed.roleTitle) parsed.roleTitle = "AI/ML Engineer";
-    if (!parsed.targetCompany) parsed.targetCompany = "Target Role";
-    if (!parsed.interviewDate) parsed.interviewDate = interviewDate;
-    if (!parsed.summary) parsed.summary = "Personalized study plan.";
-
+    if (!response.text) throw new Error("No plan generated");
+    const parsed = parseGeminiJson<any>(response.text);
     return parsed as PrepPlan;
-  } catch (e) {
-    console.error("Failed to parse plan JSON", e);
-    // Return a fallback plan to avoid crashing
-    return {
-        roleTitle: "ML Engineer (Fallback)",
-        targetCompany: "Target",
-        interviewDate: interviewDate,
-        summary: "Could not parse AI response. Here is a generic template.",
-        schedule: [
-            {
-                day: 1,
-                date: new Date().toLocaleDateString(),
-                focusArea: "Basics",
-                tasks: ["Review Linear Algebra", "Practice Easy Python problems"],
-                resources: []
-            }
-        ]
-    };
-  }
+  });
 };
 
-// --- Research / Search Grounding ---
+export const explainCodeSnippet = async (snippet: string, code: string, title: string) => {
+  return withRetry(async () => {
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview", // Updated to gemini-3 series
+      contents: `Expert tutor explanation for snippet: ${snippet}\nContext: ${code}\nProblem: ${title}`
+    });
+    return response.text || "No explanation available.";
+  });
+};
+
+export const evaluateCodeExplanation = async (snippet: string, explanation: string, code: string, title: string) => {
+  return withRetry(async () => {
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview", // Updated to gemini-3 series
+      contents: `Evaluate explanation: ${explanation}\nSnippet: ${snippet}\nContext: ${code}`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            isCorrect: { type: Type.BOOLEAN },
+            score: { type: Type.INTEGER },
+            feedback: { type: Type.STRING }
+          }
+        }
+      }
+    });
+    return parseGeminiJson<any>(response.text);
+  });
+};
+
 export const researchTopic = async (query: string) => {
-  const ai = getAiClient();
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: query,
-    config: {
-      tools: [{ googleSearch: {} }]
-    }
+  return withRetry(async () => {
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview", // Updated to gemini-3 series for text search grounding
+      contents: query,
+      config: { tools: [{ googleSearch: {} }] }
+    });
+    return {
+      text: response.text || "No results found.",
+      sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web).filter(Boolean) || []
+    };
   });
-  
-  return {
-    text: response.text || "No results found.",
-    sources: response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => chunk.web).filter(Boolean) || []
-  };
 };
 
-// --- Job Search (New) ---
 export const findJobPostings = async (role: string, location: string): Promise<JobPosting[]> => {
-  const ai = getAiClient();
-  
-  const prompt = `
-    Find 6 recent job openings for "${role}" ${location ? `in ${location}` : ''}.
-    Search specifically on LinkedIn, X (Twitter), Y Combinator, and company career pages.
-    
-    Return the results strictly as a JSON array inside a code block.
-    Each item must have:
-    - title: string
-    - company: string
-    - location: string
-    - summary: string (1 sentence description)
-    - platform: string (e.g. "LinkedIn", "Twitter", "Careers Page")
-    - url: string (The URL found in the search results. If no specific URL is found, leave empty)
-  `;
-
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: {
-      tools: [{ googleSearch: {} }]
-    }
+  return withRetry(async () => {
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview", // Updated to gemini-3 series
+      contents: `Find 6 jobs for ${role} in ${location}. Return JSON array.`,
+      config: { tools: [{ googleSearch: {} }] }
+    });
+    return parseGeminiJson<JobPosting[]>(response.text || "[]");
   });
-
-  const text = response.text || "";
-  
-  try {
-      const jobs = parseGeminiJson<any[]>(text);
-      if (!Array.isArray(jobs)) return [];
-      
-      // Post-process: If URL is empty, we can rely on the UI to generate a search link
-      return jobs.map((j: any) => ({
-          title: String(j.title || "Unknown Role"),
-          company: String(j.company || "Unknown Company"),
-          location: String(j.location || location || "Remote"),
-          summary: String(j.summary || "No description available."),
-          platform: String(j.platform || "Web"),
-          url: String(j.url || "") 
-      }));
-  } catch (e) {
-      console.error("Job JSON parse error", e);
-      return [];
-  }
 };
 
-// --- Tutor Chat ---
-export const getTutorResponse = async (history: {role: string, parts: {text: string}[]}[], message: string) => {
-  const ai = getAiClient();
-  const chat = ai.chats.create({
-    model: "gemini-3-pro-preview",
-    history: history,
-    config: {
-      systemInstruction: "You are an expert AI/ML technical interviewer and tutor. Help the user solve coding problems, understand complex algorithms, and prepare for their interview. Be concise but deep."
-    }
+export const getTutorResponse = async (history: any[], message: string) => {
+  return withRetry(async () => {
+    const ai = getAiClient();
+    const chat = ai.chats.create({
+      model: "gemini-3-pro-preview", // Using pro for high-quality chat tutoring
+      history: history,
+      config: { systemInstruction: "You are an expert ML interviewer and tutor." }
+    });
+    const result = await chat.sendMessage({ message });
+    return result.text || ""; // Accessed as property, not method
   });
-  
-  const result = await chat.sendMessage({ message });
-  return result.text || "";
 };
 
-// --- Visual Lab: Image Gen ---
 export const generateConceptImage = async (prompt: string, size: '1K' | '2K' | '4K' = '1K') => {
-  // 1. Validate & Explain
   const plan = await validateAndRefinePrompt(prompt, 'image');
-
-  // 2. Auth Check
-  if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) {
-     await window.aistudio.openSelectKey();
-  }
+  if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) await window.aistudio.openSelectKey();
   
-  // 3. Generate Image using refined prompt
-  const ai = getAiClient();
-  const model = size === '1K' ? "gemini-2.5-flash-image" : "gemini-3-pro-image-preview";
-  
-  const config = size === '1K' 
-    ? { imageConfig: { aspectRatio: "16:9" } } 
-    : { imageConfig: { imageSize: size, aspectRatio: "16:9" } };
-
-  const response = await ai.models.generateContent({
-    model,
-    contents: plan.visualPrompt,
-    config
-  });
-  
-  let imageUrl = null;
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) {
-      imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+  return withRetry(async () => {
+    const ai = getAiClient();
+    const model = size === '1K' ? "gemini-2.5-flash-image" : "gemini-3-pro-image-preview";
+    const response = await ai.models.generateContent({
+      model,
+      contents: plan.visualPrompt,
+      config: { imageConfig: { aspectRatio: "16:9", ...(size !== '1K' && { imageSize: size }) } }
+    });
+    
+    let imageUrl = null;
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) imageUrl = `data:image/png;base64,${part.inlineData.data}`;
     }
-  }
-  
-  return {
-      imageUrl,
-      explanation: plan.lectureNotes
-  };
+    return { imageUrl, explanation: plan.lectureNotes };
+  });
 };
 
-// --- Visual Lab: Image Edit ---
 export const editConceptImage = async (base64Image: string, prompt: string) => {
-  // Auth Check
-  if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) {
-     await window.aistudio.openSelectKey();
-  }
-
-  const ai = getAiClient();
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash-image",
-    contents: {
-      parts: [
-        { inlineData: { mimeType: "image/png", data: base64Image } },
-        { text: prompt }
-      ]
+  if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) await window.aistudio.openSelectKey();
+  return withRetry(async () => {
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-image",
+      contents: { parts: [{ inlineData: { mimeType: "image/png", data: base64Image } }, { text: prompt }] }
+    });
+    let imageUrl = null;
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) imageUrl = `data:image/png;base64,${part.inlineData.data}`;
     }
+    return { imageUrl, explanation: "Image edited." };
   });
-
-  let imageUrl = null;
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) {
-      imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
-  
-  return {
-      imageUrl,
-      explanation: "Image edited based on your instructions." 
-  };
 };
 
-// --- Visual Lab: Video Gen (Veo) ---
 export const generateConceptVideo = async (prompt: string, imageBase64?: string) => {
-  // 1. Validate & Explain (only if creating from scratch with text prompt as driver)
   let visualPrompt = prompt;
-  let explanation = "Video generated based on prompt.";
-  
+  let explanation = "Video generated.";
   if (!imageBase64) {
       const plan = await validateAndRefinePrompt(prompt, 'video');
       visualPrompt = plan.visualPrompt;
       explanation = plan.lectureNotes;
   }
+  if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) await window.aistudio.openSelectKey();
 
-  // 2. Auth Check
-  if (window.aistudio && !await window.aistudio.hasSelectedApiKey()) {
-     await window.aistudio.openSelectKey();
-  }
-
-  const aiWithKey = getAiClient();
-  let operation;
-  
-  if (imageBase64) {
-      operation = await aiWithKey.models.generateVideos({
+  return withRetry(async () => {
+    const aiWithKey = getAiClient(); // Create new instance right before use
+    let operation = await aiWithKey.models.generateVideos({
       model: 'veo-3.1-fast-generate-preview',
       prompt: visualPrompt,
-      image: {
-        imageBytes: imageBase64,
-        mimeType: 'image/png'
-      },
-      config: {
-        numberOfVideos: 1,
-        resolution: '720p',
-        aspectRatio: '16:9'
-      }
+      ...(imageBase64 && { image: { imageBytes: imageBase64, mimeType: 'image/png' } }),
+      config: { numberOfVideos: 1, resolution: '720p', aspectRatio: '16:9' }
     });
-  } else {
-    operation = await aiWithKey.models.generateVideos({
-      model: 'veo-3.1-fast-generate-preview',
-      prompt: visualPrompt,
-      config: {
-        numberOfVideos: 1,
-        resolution: '720p',
-        aspectRatio: '16:9'
-      }
-    });
-  }
-
-  // Polling
-  while (!operation.done) {
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    operation = await aiWithKey.operations.getVideosOperation({ operation });
-  }
-
-  const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
-  if (!videoUri) throw new Error("Video generation failed");
-
-  const finalUrl = `${videoUri}&key=${process.env.API_KEY}`;
-  const fetchResponse = await fetch(finalUrl);
-  const blob = await fetchResponse.blob();
-  
-  return {
-      videoUrl: URL.createObjectURL(blob),
-      explanation: explanation
-  };
+    while (!operation.done) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      operation = await aiWithKey.operations.getVideosOperation({ operation });
+    }
+    const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
+    const finalUrl = `${videoUri}&key=${process.env.API_KEY}`;
+    const fetchResponse = await fetch(finalUrl);
+    const blob = await fetchResponse.blob();
+    return { videoUrl: URL.createObjectURL(blob), explanation };
+  });
 };
 
-// --- Interview Report Generation ---
 export const generateInterviewReport = async (turns: InterviewTurn[]): Promise<InterviewReport> => {
-    const ai = getAiClient();
-    
-    const conversationText = turns.map(t => `${t.role.toUpperCase()}: ${t.text}`).join('\n');
-    
-    const prompt = `
-      Analyze the following transcript from a technical mock interview for an ML Engineer role.
-      
-      TRANSCRIPT:
-      ${conversationText}
-      
-      Generate a detailed feedback report in JSON format.
-      Identify specific questions asked and the quality of the candidate's answers.
-      Provide an expected "ideal" answer for each question.
-      Give an overall score (0-100).
-    `;
-
-    const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    overallScore: { type: Type.INTEGER },
-                    summary: { type: Type.STRING },
-                    strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
-                    qna: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                question: { type: Type.STRING },
-                                userAnswer: { type: Type.STRING, description: "Summary of user's answer" },
-                                expectedAnswer: { type: Type.STRING },
-                                feedback: { type: Type.STRING }
-                            }
-                        }
+    return withRetry(async () => {
+        const ai = getAiClient();
+        const response = await ai.models.generateContent({
+            model: "gemini-3-pro-preview", // Complex analysis task
+            contents: `Analyze interview transcript and return report JSON.\n\n${turns.map(t => `${t.role}: ${t.text}`).join('\n')}`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        overallScore: { type: Type.INTEGER },
+                        summary: { type: Type.STRING },
+                        strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
+                        qna: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { question: { type: Type.STRING }, userAnswer: { type: Type.STRING }, expectedAnswer: { type: Type.STRING }, feedback: { type: Type.STRING } } } }
                     }
                 }
             }
-        }
+        });
+        return parseGeminiJson<any>(response.text);
     });
+};
 
-    if (!response.text) throw new Error("Failed to generate report");
-    const parsed = parseGeminiJson<any>(response.text);
-
-    return {
-        overallScore: typeof parsed.overallScore === 'number' ? parsed.overallScore : 0,
-        summary: typeof parsed.summary === 'string' ? parsed.summary : "",
-        strengths: Array.isArray(parsed.strengths) ? parsed.strengths.map(String) : [],
-        weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.map(String) : [],
-        qna: Array.isArray(parsed.qna) ? parsed.qna.map((item: any) => ({
-            question: String(item.question || ""),
-            userAnswer: String(item.userAnswer || ""),
-            expectedAnswer: String(item.expectedAnswer || ""),
-            feedback: String(item.feedback || "")
-        })) : []
-    };
-}
-
-
-// --- Live API Helper ---
 export class LiveClient {
     private sessionPromise: Promise<any> | null = null;
     private inputAudioContext: AudioContext | null = null;
     private outputAudioContext: AudioContext | null = null;
     private nextStartTime = 0;
     private sources = new Set<AudioBufferSourceNode>();
-    
-    // Accumulators for transcription
     private currentInputTranscription = '';
     private currentOutputTranscription = '';
 
@@ -740,88 +431,59 @@ export class LiveClient {
       const ai = getAiClient();
       this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       this.outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-      
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
       this.sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-09-2025',
         callbacks: {
-          onopen: () => {
-            console.log("Live Session Open");
-            this.startAudioStream(stream);
-          },
+          onopen: () => this.startAudioStream(stream),
           onmessage: (message: LiveServerMessage) => this.handleMessage(message),
-          onclose: () => console.log("Live Session Closed"),
-          onerror: (e) => console.error("Live Session Error", e),
+          onclose: () => console.log("Live Closed"),
+          onerror: (e) => console.error("Live Error", e),
         },
         config: {
           responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
-          },
-          systemInstruction: "You are a tough but fair technical interviewer conducting a mock interview for a Senior Machine Learning Engineer role. Ask about transformers, gradients, and system design. Keep responses conversational and concise.",
-          inputAudioTranscription: {}, // Enable Input Transcription
-          outputAudioTranscription: {}, // Enable Output Transcription
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
+          systemInstruction: "You are an ML interviewer. Be friendly but ask probing technical questions.",
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
         },
       });
     }
   
     private startAudioStream(stream: MediaStream) {
       if (!this.inputAudioContext) return;
-      
       const source = this.inputAudioContext.createMediaStreamSource(stream);
       const scriptProcessor = this.inputAudioContext.createScriptProcessor(4096, 1, 1);
-      
       scriptProcessor.onaudioprocess = (e) => {
         const inputData = e.inputBuffer.getChannelData(0);
         const pcmBlob = this.createBlob(inputData);
-        this.sessionPromise?.then((session) => {
-          session.sendRealtimeInput({ media: pcmBlob });
-        });
+        // CRITICAL: Solely rely on sessionPromise resolves to send realtime input
+        this.sessionPromise?.then((session) => session.sendRealtimeInput({ media: pcmBlob }));
       };
-      
       source.connect(scriptProcessor);
       scriptProcessor.connect(this.inputAudioContext.destination);
     }
   
     private async handleMessage(message: LiveServerMessage) {
-       // Handle Audio
+       // Access audio data part from candidates
        const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
        if (audioData) {
-         this.onAudioData(audioData); // For visualization
+         this.onAudioData(audioData);
          await this.playAudio(audioData);
        }
-
-       // Handle Interruptions
        if (message.serverContent?.interrupted) {
          this.stopAudio();
-         this.currentOutputTranscription = ''; // Clear stale output
+         this.currentOutputTranscription = '';
        }
-
-       // Handle Transcription Accumulation
-       if (message.serverContent?.outputTranscription) {
-           this.currentOutputTranscription += message.serverContent.outputTranscription.text;
-       }
-       if (message.serverContent?.inputTranscription) {
-           this.currentInputTranscription += message.serverContent.inputTranscription.text;
-       }
-
-       // Handle Turn Completion
+       if (message.serverContent?.outputTranscription) this.currentOutputTranscription += message.serverContent.outputTranscription.text;
+       if (message.serverContent?.inputTranscription) this.currentInputTranscription += message.serverContent.inputTranscription.text;
        if (message.serverContent?.turnComplete) {
            if (this.currentInputTranscription.trim()) {
-               this.onTranscript({
-                   role: 'user',
-                   text: this.currentInputTranscription,
-                   timestamp: Date.now()
-               });
+               this.onTranscript({ role: 'user', text: this.currentInputTranscription, timestamp: Date.now() });
                this.currentInputTranscription = '';
            }
            if (this.currentOutputTranscription.trim()) {
-               this.onTranscript({
-                   role: 'model',
-                   text: this.currentOutputTranscription,
-                   timestamp: Date.now()
-               });
+               this.onTranscript({ role: 'model', text: this.currentOutputTranscription, timestamp: Date.now() });
                this.currentOutputTranscription = '';
            }
        }
@@ -829,60 +491,45 @@ export class LiveClient {
   
     private async playAudio(base64: string) {
       if (!this.outputAudioContext) return;
-      
       this.nextStartTime = Math.max(this.nextStartTime, this.outputAudioContext.currentTime);
-      
+      // Implementation of manual base64 decoding as per guideline rules
       const binaryString = atob(base64);
-      const len = binaryString.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
       const audioBuffer = await this.decodeAudioData(bytes, this.outputAudioContext);
-      
       const source = this.outputAudioContext.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(this.outputAudioContext.destination);
       source.onended = () => this.sources.delete(source);
-      
+      // Scheduled playback for gapless audio
       source.start(this.nextStartTime);
       this.nextStartTime += audioBuffer.duration;
       this.sources.add(source);
     }
 
     private stopAudio() {
-        this.sources.forEach(s => s.stop());
+        this.sources.forEach(s => {
+          try { s.stop(); } catch(e) {}
+        });
         this.sources.clear();
         this.nextStartTime = 0;
     }
   
     private createBlob(data: Float32Array): Blob {
-      const l = data.length;
-      const int16 = new Int16Array(l);
-      for (let i = 0; i < l; i++) {
-        int16[i] = data[i] * 32768;
-      }
-      let binary = '';
+      const int16 = new Int16Array(data.length);
+      for (let i = 0; i < data.length; i++) int16[i] = data[i] * 32768;
       const bytes = new Uint8Array(int16.buffer);
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return {
-        data: btoa(binary),
-        mimeType: 'audio/pcm;rate=16000',
-      };
+      // Manual base64 encoding
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+      return { data: btoa(binary), mimeType: 'audio/pcm;rate=16000' };
     }
 
     private async decodeAudioData(data: Uint8Array, ctx: AudioContext): Promise<AudioBuffer> {
       const dataInt16 = new Int16Array(data.buffer);
-      const frameCount = dataInt16.length;
-      const buffer = ctx.createBuffer(1, frameCount, 24000);
+      const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
       const channelData = buffer.getChannelData(0);
-      for (let i = 0; i < frameCount; i++) {
-        channelData[i] = dataInt16[i] / 32768.0;
-      }
+      for (let i = 0; i < dataInt16.length; i++) channelData[i] = dataInt16[i] / 32768.0;
       return buffer;
     }
 
